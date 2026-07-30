@@ -1,0 +1,125 @@
+import { addDays } from "date-fns";
+import { db } from "@/lib/db";
+import {
+  createInvitationToken,
+  ensureStor24Workspace,
+  expireOldInvitations,
+  hashInvitationToken,
+} from "@/lib/invitation-service";
+import { createInvitationSchema } from "@/lib/validators";
+
+export const dynamic = "force-dynamic";
+
+function isSameOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  const allowedOrigins = new Set([new URL(request.url).origin, process.env.APP_URL].filter(Boolean));
+  return allowedOrigins.has(origin);
+}
+
+export async function GET() {
+  const organisation = await ensureStor24Workspace();
+  await expireOldInvitations();
+
+  const [invitations, users] = await Promise.all([
+    db.userInvitation.findMany({
+      where: { organisationId: organisation.id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    }),
+    db.user.findMany({
+      where: { organisationId: organisation.id },
+      include: { roleAssignments: { include: { role: true, facility: true } } },
+      orderBy: { name: "asc" },
+      take: 100,
+    }),
+  ]);
+
+  return Response.json({
+    data: invitations.map((invitation) => ({
+      id: invitation.id,
+      name: invitation.name,
+      email: invitation.email,
+      roleName: invitation.roleName,
+      facilityCode: invitation.facilityCode,
+      status: invitation.status,
+      expiresAt: invitation.expiresAt.toISOString(),
+      createdAt: invitation.createdAt.toISOString(),
+    })),
+    users: users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      active: user.active,
+      role: user.roleAssignments[0]?.role.name ?? "Unassigned",
+      scope: user.roleAssignments[0]?.facility?.name ?? "All facilities",
+    })),
+  });
+}
+
+export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return Response.json({ error: { code: "ORIGIN_REJECTED", message: "The request origin is not allowed." } }, { status: 403 });
+  }
+
+  const parsed = createInvitationSchema.safeParse(await request.json());
+  if (!parsed.success) {
+    return Response.json(
+      { error: { code: "VALIDATION_ERROR", message: "Check the invitation details.", fields: parsed.error.flatten().fieldErrors } },
+      { status: 422 },
+    );
+  }
+
+  const organisation = await ensureStor24Workspace();
+  await expireOldInvitations();
+
+  const [existingUser, existingInvitation] = await Promise.all([
+    db.user.findUnique({ where: { organisationId_email: { organisationId: organisation.id, email: parsed.data.email } } }),
+    db.userInvitation.findFirst({
+      where: { organisationId: organisation.id, email: parsed.data.email, status: "PENDING" },
+    }),
+  ]);
+
+  if (existingUser) {
+    return Response.json({ error: { code: "USER_EXISTS", message: "This email already belongs to an active user." } }, { status: 409 });
+  }
+  if (existingInvitation) {
+    return Response.json({ error: { code: "INVITATION_EXISTS", message: "A pending invitation already exists for this email." } }, { status: 409 });
+  }
+
+  const token = createInvitationToken();
+  const invitation = await db.userInvitation.create({
+    data: {
+      organisationId: organisation.id,
+      ...parsed.data,
+      facilityCode: parsed.data.facilityCode || null,
+      tokenHash: hashInvitationToken(token),
+      expiresAt: addDays(new Date(), 7),
+      invitedByName: "Brett Dovey",
+    },
+  });
+
+  await db.auditEvent.create({
+    data: {
+      organisationId: organisation.id,
+      action: "user.invitation.created",
+      entityType: "UserInvitation",
+      entityId: invitation.id,
+      after: { email: invitation.email, roleName: invitation.roleName, facilityCode: invitation.facilityCode },
+    },
+  });
+
+  const appUrl = process.env.APP_URL || new URL(request.url).origin;
+  return Response.json(
+    {
+      data: {
+        id: invitation.id,
+        status: invitation.status,
+        expiresAt: invitation.expiresAt.toISOString(),
+        inviteUrl: `${appUrl}/invite/${token}`,
+        delivery: "LINK_READY",
+      },
+    },
+    { status: 201 },
+  );
+}

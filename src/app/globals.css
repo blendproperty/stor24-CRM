@@ -1206,6 +1206,218 @@ select {
   font-weight: 650;
 }
 
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.text-button-danger {
+  color: var(--red);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(10, 18, 34, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.modal-card {
+  position: relative;
+  width: min(520px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 28px;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 28px 80px rgba(10, 18, 34, 0.3);
+}
+
+.modal-card h2 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.modal-copy {
+  margin: 8px 0 22px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: white;
+}
+
+.invite-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.invite-form label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.invite-form input,
+.invite-form select,
+.invite-success input {
+  display: block;
+  width: 100%;
+  height: 43px;
+  margin-top: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fafbfc;
+  color: var(--ink);
+}
+
+.invite-form .button,
+.invite-form .form-error {
+  grid-column: 1 / -1;
+}
+
+.form-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 11px;
+}
+
+.invite-success {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.invite-success > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.invite-success > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.invite-success > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.invite-success > div input {
+  margin: 0;
+  font-size: 10px;
+}
+
+.invite-success > div button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--navy);
+  color: white;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.accept-page {
+  display: grid;
+  min-height: calc(100vh - 132px);
+  place-items: center;
+}
+
+.accept-card {
+  width: min(560px, 100%);
+  padding: 34px;
+  text-align: center;
+}
+
+.accept-card > svg {
+  margin-bottom: 18px;
+  color: var(--orange);
+}
+
+.accept-card .accept-positive {
+  color: var(--green);
+}
+
+.accept-card .accept-error {
+  color: var(--red);
+}
+
+.accept-card h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.accept-card > p:not(.eyebrow):not(.form-error) {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.accept-card dl {
+  margin: 24px 0;
+  text-align: left;
+}
+
+.accept-card dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+
+.accept-card dt {
+  color: var(--muted);
+}
+
+.accept-card dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 1100px) {
   .metric-grid,
   .readiness-grid {
@@ -1307,6 +1519,14 @@ select {
 
   .role-grid {
     grid-template-columns: 1fr;
+  }
+
+  .invite-form {
+    grid-template-columns: 1fr;
+  }
+
+  .invite-form label {
+    grid-column: 1;
   }
 
   .search {

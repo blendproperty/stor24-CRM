@@ -77,6 +77,13 @@ enum TaskPriority {
   URGENT
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 model Organisation {
   id         String     @id @default(cuid())
   name       String
@@ -90,8 +97,30 @@ model Organisation {
   tasks      Task[]
   auditEvents AuditEvent[]
   integrations IntegrationConnection[]
+  invitations UserInvitation[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
+}
+
+model UserInvitation {
+  id             String           @id @default(cuid())
+  organisationId String
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  email          String
+  name           String
+  roleName       String
+  facilityCode   String?
+  tokenHash      String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  invitedByName  String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([organisationId, status, expiresAt])
+  @@index([organisationId, email, status])
 }
 
 model Facility {
