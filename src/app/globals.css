@@ -1170,6 +1170,42 @@ select {
   font-weight: 650;
 }
 
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.role-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.role-card > svg {
+  color: var(--orange);
+}
+
+.role-card strong {
+  font-size: 12px;
+}
+
+.role-card p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.role-card > span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
 @media (max-width: 1100px) {
   .metric-grid,
   .readiness-grid {
@@ -1267,6 +1303,10 @@ select {
 
   .unit-inspector {
     grid-column: auto;
+  }
+
+  .role-grid {
+    grid-template-columns: 1fr;
   }
 
   .search {

@@ -25,6 +25,7 @@ import { clsx } from "clsx";
 const navigation = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/tenants", label: "Tenants", icon: Users },
+  { href: "/users", label: "Users & permissions", icon: Users },
   { href: "/leads", label: "Lead to lease", icon: CalendarCheck },
   { href: "/units", label: "Units & rates", icon: Warehouse },
   { href: "/billing", label: "Billing & payments", icon: CreditCard },
