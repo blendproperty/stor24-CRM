@@ -46,7 +46,9 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - stor24-crm
+      stor24-crm:
+        aliases:
+          - stor24-postgres
 
 networks:
   stor24-crm:
