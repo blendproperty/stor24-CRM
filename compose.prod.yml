@@ -12,6 +12,14 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
     ports:
       - "127.0.0.1:${APP_PORT:-3014}:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=root_default
+      - traefik.http.routers.stor24-crm.rule=Host(`${APP_HOST:-stor24-site.srv938083.hstgr.cloud}`)
+      - traefik.http.routers.stor24-crm.entrypoints=websecure
+      - traefik.http.routers.stor24-crm.tls=true
+      - traefik.http.routers.stor24-crm.tls.certresolver=mytlschallenge
+      - traefik.http.services.stor24-crm.loadbalancer.server.port=3000
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 30s
@@ -20,6 +28,7 @@ services:
       start_period: 20s
     networks:
       - stor24-crm
+      - traefik
 
   postgres:
     image: postgres:17-alpine
@@ -42,8 +51,10 @@ services:
 networks:
   stor24-crm:
     name: stor24-crm
+  traefik:
+    external: true
+    name: root_default
 
 volumes:
   stor24-crm-postgres:
     name: stor24-crm-postgres
-
