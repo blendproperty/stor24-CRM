@@ -6,7 +6,8 @@ services:
     image: stor24-crm:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file:
-      - .env
+      - path: .env
+        format: raw
     environment:
       NODE_ENV: production
     ports:
