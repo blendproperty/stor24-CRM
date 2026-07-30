@@ -40,3 +40,13 @@ curl --fail http://127.0.0.1:3014/api/health
 
 Back up PostgreSQL before applying future database migrations. Do not publish port 5432. Add the approved DNS hostname and TLS route only after confirming the exact domain, reverse-proxy network and certificate setup.
 
+## GitHub Actions deployment
+
+The manual `Deploy to VPS` workflow requires these repository or production-environment secrets:
+
+- `VPS_HOST`
+- `VPS_USER`
+- `VPS_SSH_KEY`
+- `VPS_KNOWN_HOSTS`
+
+The workflow is manual by design. It will not deploy on push and will fail closed if any required value is absent.
