@@ -1,19 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, LoaderCircle, ShieldCheck, XCircle } from "lucide-react";
 
 export function AcceptInvitation({ token, name, email, roleName, facilityName }: { token: string; name: string; email: string; roleName: string; facilityName: string }) {
   const [state, setState] = useState<"idle" | "busy" | "accepted" | "error">("idle");
   const [message, setMessage] = useState("");
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmationRef = useRef<HTMLInputElement>(null);
 
   async function accept() {
+    const password = passwordRef.current?.value ?? "";
+    if (password !== (confirmationRef.current?.value ?? "")) {
+      setState("error");
+      setMessage("Passwords do not match.");
+      return;
+    }
     setState("busy");
     const response = await fetch("/api/v1/invitations/accept", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, password }),
     });
     const payload = await response.json();
     if (!response.ok) {
@@ -34,9 +42,11 @@ export function AcceptInvitation({ token, name, email, roleName, facilityName }:
       <p className="eyebrow">Stor24 invitation</p>
       <h1>Join the Stor24 workspace</h1>
       <dl><div><dt>Name</dt><dd>{name}</dd></div><div><dt>Email</dt><dd>{email}</dd></div><div><dt>Role</dt><dd>{roleName}</dd></div><div><dt>Scope</dt><dd>{facilityName}</dd></div></dl>
-      {message ? <p className="form-error">{message}</p> : <p>Accepting creates your user record and applies the assigned facility permissions.</p>}
+      {message ? <p className="form-error">{message}</p> : <p>Choose a secure password to activate your account and assigned facility permissions.</p>}
+      <label className="accept-password-label">Create password<input ref={passwordRef} type="password" autoComplete="new-password" minLength={12} required /></label>
+      <label className="accept-password-label">Confirm password<input ref={confirmationRef} type="password" autoComplete="new-password" minLength={12} required /></label>
+      <p className="password-guidance">Use 12+ characters with upper and lowercase letters, a number and a symbol.</p>
       <button className="button button-primary" disabled={state === "busy"} onClick={accept}>{state === "busy" ? <LoaderCircle className="spin" size={16} /> : <CheckCircle2 size={16} />}{state === "busy" ? "Activating…" : "Accept invitation"}</button>
     </section>
   );
 }
-

@@ -369,6 +369,7 @@ model User {
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   email          String
   name           String
+  passwordHash   String?
   active         Boolean      @default(true)
   roleAssignments RoleAssignment[]
   assignedLeads  Lead[]

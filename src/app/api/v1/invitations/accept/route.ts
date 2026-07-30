@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { hashInvitationToken } from "@/lib/invitation-service";
 import { acceptInvitationSchema } from "@/lib/validators";
+import { hash } from "bcryptjs";
+import { setSession } from "@/lib/session";
 
 export async function POST(request: Request) {
   const parsed = acceptInvitationSchema.safeParse(await request.json());
@@ -30,6 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
+    const passwordHash = await hash(parsed.data.password, 12);
     const user = await db.$transaction(async (tx) => {
       const claimed = await tx.userInvitation.updateMany({
         where: { id: invitation.id, status: "PENDING", expiresAt: { gte: new Date() } },
@@ -42,6 +45,7 @@ export async function POST(request: Request) {
           organisationId: invitation.organisationId,
           email: invitation.email,
           name: invitation.name,
+          passwordHash,
         },
       });
       await tx.roleAssignment.create({
@@ -60,9 +64,9 @@ export async function POST(request: Request) {
       return createdUser;
     });
 
+    await setSession({ userId: user.id, name: user.name, email: user.email, role: role.name });
     return Response.json({ data: { id: user.id, name: user.name, email: user.email, status: "ACTIVE" } });
   } catch {
     return Response.json({ error: { code: "ACCEPTANCE_FAILED", message: "The invitation could not be accepted." } }, { status: 409 });
   }
 }
-

@@ -12,6 +12,7 @@ import {
   CreditCard,
   LandPlot,
   LayoutDashboard,
+  LogOut,
   PhoneCall,
   Search,
   Settings,
@@ -21,6 +22,8 @@ import {
   Warehouse,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { useRouter } from "next/navigation";
+import type { SessionPayload } from "@/lib/session";
 
 const navigation = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -41,8 +44,24 @@ const navigation = [
   { href: "/phone", label: "Phone integration", icon: PhoneCall },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, session }: { children: React.ReactNode; session: SessionPayload | null }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const publicPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/setup/");
+  if (publicPage) return children;
+
+  async function signOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+    router.refresh();
+  }
+
+  const initials = session?.name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "ST";
 
   return (
     <div className="app-shell">
@@ -107,12 +126,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Bell size={18} />
             </button>
             <div className="profile">
-              <span className="avatar">BD</span>
+              <span className="avatar">{initials}</span>
               <div>
-                <strong>Brett Dovey</strong>
-                <small>Organisation owner</small>
+                <strong>{session?.name ?? "Stor24 user"}</strong>
+                <small>{session?.role ?? "Secure workspace"}</small>
               </div>
             </div>
+            <button className="icon-button" type="button" aria-label="Sign out" title="Sign out" onClick={signOut}>
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
         <main className="content">{children}</main>

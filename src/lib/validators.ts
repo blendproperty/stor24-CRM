@@ -27,6 +27,27 @@ export const createInvitationSchema = z.object({
   facilityCode: z.string().trim().max(40).optional(),
 });
 
+const strongPasswordSchema = z
+    .string()
+    .min(12, "Use at least 12 characters.")
+    .max(128)
+    .regex(/[a-z]/, "Add a lowercase letter.")
+    .regex(/[A-Z]/, "Add an uppercase letter.")
+    .regex(/[0-9]/, "Add a number.")
+    .regex(/[^a-zA-Z0-9]/, "Add a special character.");
+
 export const acceptInvitationSchema = z.object({
   token: z.string().min(32).max(200),
+  password: strongPasswordSchema,
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(1).max(128),
+});
+
+export const ownerSetupSchema = loginSchema.extend({
+  token: z.string().min(32).max(200),
+  name: z.string().trim().min(2).max(120),
+  password: strongPasswordSchema,
 });

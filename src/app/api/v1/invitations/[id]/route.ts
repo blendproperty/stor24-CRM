@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { requireOwner } from "@/lib/auth-guards";
 
 function isSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -6,6 +7,7 @@ function isSameOrigin(request: Request) {
 }
 
 export async function DELETE(request: Request, context: RouteContext<"/api/v1/invitations/[id]">) {
+  await requireOwner();
   if (!isSameOrigin(request)) {
     return Response.json({ error: { code: "ORIGIN_REJECTED", message: "The request origin is not allowed." } }, { status: 403 });
   }
@@ -27,4 +29,3 @@ export async function DELETE(request: Request, context: RouteContext<"/api/v1/in
   ]);
   return Response.json({ data: { id, status: "REVOKED" } });
 }
-

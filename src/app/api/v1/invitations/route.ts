@@ -7,6 +7,7 @@ import {
   hashInvitationToken,
 } from "@/lib/invitation-service";
 import { createInvitationSchema } from "@/lib/validators";
+import { requireOwner } from "@/lib/auth-guards";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ function isSameOrigin(request: Request) {
 }
 
 export async function GET() {
+  await requireOwner();
   const organisation = await ensureStor24Workspace();
   await expireOldInvitations();
 
@@ -58,6 +60,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const actor = await requireOwner();
   if (!isSameOrigin(request)) {
     return Response.json({ error: { code: "ORIGIN_REJECTED", message: "The request origin is not allowed." } }, { status: 403 });
   }
@@ -95,7 +98,7 @@ export async function POST(request: Request) {
       facilityCode: parsed.data.facilityCode || null,
       tokenHash: hashInvitationToken(token),
       expiresAt: addDays(new Date(), 7),
-      invitedByName: "Brett Dovey",
+      invitedByName: actor.name,
     },
   });
 
