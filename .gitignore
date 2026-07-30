@@ -43,6 +43,12 @@ next-env.d.ts
 
 /src/generated/prisma
 
+# Local research evidence. These files inform the product but are not published.
+/Structured Capture/
+/Main Pages/
+/Operations/
+/tmp/
+
 # local AI tool scaffolds installed by Prisma CLI
 /.agents/
 /.claude/

@@ -1,0 +1,13 @@
+.git
+.github
+.next
+node_modules
+Structured Capture
+Main Pages
+Operations
+graphify-out
+tmp
+*.log
+.env*
+!.env.example
+

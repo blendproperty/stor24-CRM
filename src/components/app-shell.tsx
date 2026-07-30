@@ -6,12 +6,17 @@ import {
   BarChart3,
   Bell,
   Building2,
+  CalendarDays,
   CalendarCheck,
+  Calculator,
   CreditCard,
+  LandPlot,
   LayoutDashboard,
+  PhoneCall,
   Search,
   Settings,
   ShieldAlert,
+  SlidersHorizontal,
   Users,
   Warehouse,
 } from "lucide-react";
@@ -25,7 +30,14 @@ const navigation = [
   { href: "/billing", label: "Billing & payments", icon: CreditCard },
   { href: "/collections", label: "Collections", icon: ShieldAlert },
   { href: "/operations", label: "Operations", icon: Building2 },
+  { href: "/adjustments", label: "Adjustments", icon: SlidersHorizontal },
+  { href: "/company", label: "Company & setup", icon: Settings },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/graphs", label: "Graphs", icon: BarChart3 },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/prorate", label: "Prorate calculator", icon: Calculator },
+  { href: "/map", label: "Facility map", icon: LandPlot },
+  { href: "/phone", label: "Phone integration", icon: PhoneCall },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -57,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
-          <p className="nav-label">Administration</p>
+          <p className="nav-label">System</p>
           <Link
             className={clsx(
               "nav-link",

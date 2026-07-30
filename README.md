@@ -6,14 +6,18 @@ Cloud-first self-storage operations platform for Stor24, scaffolded from the obs
 
 - Next.js App Router, React, TypeScript and Tailwind CSS
 - Responsive Stor24 operations shell
-- Dashboard, tenants, lead-to-lease, units, billing, collections, operations, reports and settings routes
+- Dashboard, tenants, lead-to-lease, units, billing, collections, operations, adjustments, company setup, reports, graphs, calendar, proration, facility map, phone integration and settings routes
 - Guided move-in workflow shell
+- Interactive status-coloured facility map derived from the observed SiteLink map
+- Evidence-backed catalogue covering Program Defaults, security, marketing and all thirteen Marketplace sections
 - Versioned lead API with Zod validation
 - Health endpoint
 - PostgreSQL/Prisma domain model
 - Multi-organisation and facility scoping
 - Tenant lifecycle, financial ledger, payments, tasking, integrations, RBAC and audit entities
 - Synthetic demo data only
+- Docker standalone production image and VPS Compose configuration
+- GitHub Actions validation workflow
 
 ## Run locally
 
@@ -36,6 +40,14 @@ npm run lint
 npm run build
 npm run db:validate
 ```
+
+## Evidence
+
+[`docs/EVIDENCE_TO_BUILD_MATRIX.md`](docs/EVIDENCE_TO_BUILD_MATRIX.md) maps the curated SiteLink screenshots and supplied manuals to each scaffolded route and module. Source screenshots remain local and are ignored by Git because they are research evidence, not public application assets.
+
+## VPS
+
+[`docs/VPS_DEPLOYMENT.md`](docs/VPS_DEPLOYMENT.md) contains the safe Docker deployment and update runbook. The application binds to `127.0.0.1:3014` by default so the VPS reverse proxy can provide the approved hostname and TLS.
 
 ## API scaffold
 

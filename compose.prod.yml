@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stor24-crm:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_URL: ${APP_URL:-http://localhost:3014}
+      DATABASE_URL: ${DATABASE_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+    ports:
+      - "127.0.0.1:${APP_PORT:-3014}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - stor24-crm
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    profiles: ["database"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stor24_crm}
+      POSTGRES_USER: ${POSTGRES_USER:-stor24}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - stor24-crm-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stor24} -d ${POSTGRES_DB:-stor24_crm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - stor24-crm
+
+networks:
+  stor24-crm:
+    name: stor24-crm
+
+volumes:
+  stor24-crm-postgres:
+    name: stor24-crm-postgres
+
