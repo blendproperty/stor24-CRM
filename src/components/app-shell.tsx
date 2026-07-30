@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
@@ -67,11 +68,15 @@ export function AppShell({ children, session }: { children: React.ReactNode; ses
     <div className="app-shell">
       <aside className="sidebar">
         <Link className="brand" href="/">
-          <span className="brand-mark">24</span>
-          <span>
-            <strong>Stor24</strong>
-            <small>Cloud CRM</small>
-          </span>
+          <Image
+            alt="Stor24"
+            className="brand-logo"
+            height={40}
+            priority
+            src="/brand/stor24-logo-white.svg"
+            unoptimized
+            width={153}
+          />
         </Link>
         <nav className="nav" aria-label="Primary navigation">
           <p className="nav-label">Workspace</p>

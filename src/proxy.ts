@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/session";
 
-const publicPagePrefixes = ["/login", "/invite/", "/setup/"];
+const publicPagePrefixes = ["/login", "/invite/", "/setup/", "/brand/"];
 const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/v1/invitations/accept"];
 
 export async function proxy(request: NextRequest) {

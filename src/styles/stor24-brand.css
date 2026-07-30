@@ -1,0 +1,213 @@
+/*
+ * Stor24 interface CI
+ * Source: approved Stor24 public-website reskin and official brand assets.
+ */
+:root {
+  --stor24-ink: #071411;
+  --stor24-ink-soft: #0b1d19;
+  --stor24-cream: #f5f3ea;
+  --stor24-white: #ffffff;
+  --stor24-orange: #ff5a0a;
+  --stor24-orange-bright: #ff7a00;
+  --stor24-muted: #64736d;
+  --stor24-line: #dfe3df;
+  --stor24-green: #079447;
+
+  --ink: var(--stor24-ink);
+  --muted: var(--stor24-muted);
+  --line: var(--stor24-line);
+  --canvas: var(--stor24-cream);
+  --surface: var(--stor24-white);
+  --navy: var(--stor24-ink);
+  --navy-soft: #153029;
+  --orange: var(--stor24-orange);
+  --orange-soft: #fff0e8;
+  --green: var(--stor24-green);
+  --green-soft: #e8f7f1;
+}
+
+body {
+  font-family: var(--font-satoshi), "Satoshi", Arial, sans-serif;
+}
+
+::selection {
+  background: var(--stor24-orange);
+  color: var(--stor24-white);
+}
+
+.sidebar {
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 90, 10, 0.12), transparent 32%),
+    var(--stor24-ink);
+}
+
+.brand {
+  min-height: 88px;
+  padding: 0 22px;
+}
+
+.brand-logo {
+  display: block;
+  width: 154px;
+  height: auto;
+}
+
+.nav-label { color: #71837c; }
+
+.nav-link {
+  min-height: 46px;
+  border-radius: 13px;
+  color: #b8c6c0;
+  font-weight: 650;
+}
+
+.nav-link:hover { background: rgba(255, 255, 255, 0.07); }
+
+.nav-link-active {
+  background: var(--stor24-orange);
+  color: var(--stor24-white);
+  box-shadow: 0 10px 28px rgba(255, 90, 10, 0.22);
+}
+
+.facility-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.topbar {
+  border-bottom-color: rgba(7, 20, 17, 0.1);
+  background: rgba(245, 243, 234, 0.9);
+}
+
+.search { color: #718079; }
+
+.icon-button {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--stor24-ink);
+}
+
+.avatar {
+  border-radius: 50%;
+  background: var(--stor24-orange);
+}
+
+.content { padding: clamp(22px, 3vw, 42px); }
+
+.eyebrow {
+  color: var(--stor24-orange);
+  font-weight: 850;
+  letter-spacing: 0.18em;
+}
+
+.page-header h1 {
+  font-size: clamp(32px, 3.4vw, 48px);
+  font-weight: 850;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+}
+
+.button {
+  min-height: 45px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-weight: 800;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.button:hover { transform: translateY(-1px); }
+
+.button-primary {
+  background: var(--stor24-orange);
+  box-shadow: 0 12px 28px rgba(255, 90, 10, 0.22);
+}
+
+.button-secondary {
+  border-color: rgba(7, 20, 17, 0.18);
+  background: transparent;
+}
+
+.metric-card,
+.panel,
+.module-card {
+  border-color: rgba(7, 20, 17, 0.11);
+  border-radius: 20px;
+  box-shadow: 0 16px 44px rgba(7, 20, 17, 0.055);
+}
+
+.metric-card {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+}
+
+.metric-card::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--stor24-orange);
+  content: "";
+}
+
+.metric-value {
+  font-size: 34px;
+  font-weight: 850;
+  letter-spacing: -0.05em;
+}
+
+.metric-icon,
+.work-icon {
+  border-radius: 50%;
+  background: #edf1ed;
+  color: var(--stor24-ink);
+}
+
+.metric-icon-orange {
+  background: var(--orange-soft);
+  color: var(--stor24-orange);
+}
+
+.panel-heading h2 {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.text-link {
+  color: var(--stor24-orange);
+  font-weight: 800;
+}
+
+.data-table th {
+  background: #efeee7;
+  color: #5e6b66;
+}
+
+.data-table tbody tr { transition: background 140ms ease; }
+.data-table tbody tr:hover { background: #fffaf6; }
+
+.toolbar,
+.data-table td,
+.work-row {
+  border-color: rgba(7, 20, 17, 0.1);
+}
+
+.status-pill { font-weight: 800; }
+
+.summary-strip {
+  border-color: rgba(7, 20, 17, 0.12);
+  background: rgba(7, 20, 17, 0.12);
+}
+
+.summary-cell strong {
+  font-weight: 850;
+  letter-spacing: -0.035em;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--stor24-orange);
+  outline-offset: 3px;
+}

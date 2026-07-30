@@ -1,4 +1,5 @@
 import { Boxes, ChartNoAxesCombined, Headphones, ShieldCheck } from "lucide-react";
+import Image from "next/image";
 
 export function PortalAuthLayout({
   eyebrow,
@@ -16,7 +17,7 @@ export function PortalAuthLayout({
       <section className="portal-brand-panel">
         <div className="portal-brand-glow" />
         <div className="portal-brand-lockup">
-          <span className="portal-logo-mark"><b>stor</b><i>24</i></span>
+          <Image className="portal-official-logo" src="/brand/stor24-logo-white.svg" alt="Stor24" width={183} height={48} priority unoptimized />
           <span>Property operations cloud</span>
         </div>
         <div className="portal-brand-copy">
@@ -33,7 +34,7 @@ export function PortalAuthLayout({
       </section>
       <section className="portal-form-panel">
         <div className="portal-form-wrap">
-          <div className="portal-mobile-brand"><span className="portal-logo-mark"><b>stor</b><i>24</i></span></div>
+          <div className="portal-mobile-brand"><Image className="portal-official-logo portal-official-logo-dark" src="/brand/stor24-logo-dark.svg" alt="Stor24" width={153} height={40} priority unoptimized /></div>
           <p className="portal-eyebrow">{eyebrow}</p>
           <h2>{title}</h2>
           <p className="portal-intro">{description}</p>
