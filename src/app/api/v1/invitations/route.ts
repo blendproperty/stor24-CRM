@@ -2,12 +2,12 @@ import { addDays } from "date-fns";
 import { db } from "@/lib/db";
 import {
   createInvitationToken,
-  ensureStor24Workspace,
   expireOldInvitations,
   hashInvitationToken,
 } from "@/lib/invitation-service";
 import { createInvitationSchema } from "@/lib/validators";
 import { requireOwner } from "@/lib/auth-guards";
+import { emailProvider, escapeEmailHtml } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,7 @@ function isSameOrigin(request: Request) {
 
 export async function GET() {
   await requireOwner();
-  const organisation = await ensureStor24Workspace();
+  const organisation = await db.organisation.findUniqueOrThrow({ where: { id: (await requireOwner()).user.organisationId } });
   await expireOldInvitations();
 
   const [invitations, users] = await Promise.all([
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const organisation = await ensureStor24Workspace();
+  const organisation = await db.organisation.findUniqueOrThrow({ where: { id: actor.user.organisationId } });
   await expireOldInvitations();
 
   const [existingUser, existingInvitation] = await Promise.all([
@@ -108,19 +108,26 @@ export async function POST(request: Request) {
       action: "user.invitation.created",
       entityType: "UserInvitation",
       entityId: invitation.id,
+      actorId: actor.user.id,
       after: { email: invitation.email, roleName: invitation.roleName, facilityCode: invitation.facilityCode },
     },
   });
 
   const appUrl = process.env.APP_URL || new URL(request.url).origin;
+  const inviteUrl = `${appUrl}/invite/${token}`;
+  try {
+    await emailProvider().send({ to: invitation.email, subject: "You are invited to Stor24 CRM", text: `Accept your invitation: ${inviteUrl}`, html: `<p>${escapeEmailHtml(invitation.invitedByName)} invited you to Stor24 CRM.</p><p><a href="${inviteUrl}">Accept invitation</a></p>` });
+  } catch {
+    await db.userInvitation.update({ where: { id: invitation.id }, data: { status: "REVOKED", revokedAt: new Date() } });
+    return Response.json({ error: { code: "DELIVERY_FAILED", message: "The invitation email could not be delivered. Check the email provider configuration and retry." } }, { status: 503 });
+  }
   return Response.json(
     {
       data: {
         id: invitation.id,
         status: invitation.status,
         expiresAt: invitation.expiresAt.toISOString(),
-        inviteUrl: `${appUrl}/invite/${token}`,
-        delivery: "LINK_READY",
+        delivery: "SENT",
       },
     },
     { status: 201 },

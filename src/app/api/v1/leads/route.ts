@@ -1,11 +1,16 @@
 import { leads } from "@/lib/demo-data";
 import { createLeadSchema } from "@/lib/validators";
+import { requirePermission } from "@/lib/auth-guards";
+import { sameOrigin } from "@/lib/request-security";
 
-export function GET() {
+export async function GET() {
+  await requirePermission("leads.view");
   return Response.json({ data: leads, meta: { count: leads.length } });
 }
 
 export async function POST(request: Request) {
+  await requirePermission("leads.create");
+  if (!sameOrigin(request)) return Response.json({ error: { code: "ORIGIN_REJECTED", message: "The request origin is not allowed." } }, { status: 403 });
   const parsed = createLeadSchema.safeParse(await request.json());
 
   if (!parsed.success) {

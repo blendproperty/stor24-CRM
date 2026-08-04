@@ -15,7 +15,7 @@ Cloud-first self-storage operations platform for Stor24, scaffolded from the obs
 - PostgreSQL/Prisma domain model
 - Multi-organisation and facility scoping
 - Tenant lifecycle, financial ledger, payments, tasking, integrations, RBAC and audit entities
-- Synthetic demo data only
+- Database-backed authentication, user administration, invitations, RBAC and security audit events
 - Docker standalone production image and VPS Compose configuration
 - GitHub Actions validation workflow
 
@@ -30,7 +30,13 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The current UI uses synthetic in-memory data so it runs before a database is connected. Prisma is the intended persistence boundary. Do not use customer data until authentication, authorisation, encryption, retention and audit controls have been implemented and reviewed.
+Authentication and user administration use PostgreSQL through Prisma. Other operational modules still contain synthetic scaffold data and must not be treated as production records.
+
+## Authentication and email
+
+Apply migrations before starting the updated application. `AUTH_SECRET` must contain at least 32 random characters. Account recovery uses hashed, 30-minute, single-use tokens and never returns whether an account exists. Configure `EMAIL_PROVIDER=resend`, `EMAIL_FROM`, and `RESEND_API_KEY` for delivery; provider credentials remain server-only. Password changes and resets increment `sessionVersion`, invalidating every existing session for that user.
+
+See [`docs/OWNER_RECOVERY_RUNBOOK.md`](docs/OWNER_RECOVERY_RUNBOOK.md) for the controlled owner-recovery procedure. Do not place reset or bootstrap tokens in tickets, logs, screenshots, or source control.
 
 ## Validation
 
@@ -69,7 +75,7 @@ Example lead payload:
 }
 ```
 
-Route handlers are public HTTP boundaries. Authentication, facility-scoped authorisation, rate limiting, audit logging and idempotency must be added before production use.
+Route handlers are security boundaries. Protected handlers must call `requirePermission` or `requireSession`; Proxy redirects are an optimistic user-experience check only.
 
 ## Architecture
 
