@@ -1,34 +1,6 @@
-import { CheckCircle2 } from "lucide-react";
+import { moveInAction } from "@/app/actions/leasing";
 import { PageHeader } from "@/components/page-header";
-
-export const metadata = { title: "New move-in" };
-
-export default function MoveInPage() {
-  const steps = [
-    ["1", "Customer", "Identify an existing customer or capture a new person or organisation."],
-    ["2", "Unit & rate", "Select real-time availability, rate plan, promotion and intended start date."],
-    ["3", "Agreement", "Capture required details, protection choice and generate documents."],
-    ["4", "Payment", "Collect initial charges and tokenise the recurring payment mandate."],
-    ["5", "Access", "Provision credentials and activate occupancy after transactional checks pass."],
-  ];
-  return (
-    <div className="page-stack">
-      <PageHeader
-        eyebrow="Guided workflow"
-        title="New move-in"
-        description="A transaction-safe wizard that keeps unit, agreement, ledger and access state aligned."
-      />
-      <section className="panel panel-spacious">
-        <div className="work-list">
-          {steps.map(([number, title, copy], index) => (
-            <div className="work-row" key={title}>
-              <span className="work-icon work-icon-positive">{index === 0 ? <CheckCircle2 size={18} /> : number}</span>
-              <span className="work-copy"><strong>{title}</strong><small>{copy}</small></span>
-              <span className="status-pill">{index === 0 ? "Ready" : "Pending"}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
+import { listLeasing } from "@/lib/leasing-service";
+import { requireScope } from "@/lib/scope";
+export const metadata={title:"New move-in"};
+export default async function MoveInPage(){const data=await listLeasing(await requireScope());const units=data.facilities.flatMap(f=>f.units.filter(u=>u.status==="AVAILABLE"||u.status==="RESERVED"));return <div className="page-stack"><PageHeader eyebrow="Guided workflow" title="New move-in" description="Create the account, tenancy, occupancy, initial charge and audit record in one database transaction."/><section className="panel panel-spacious"><form action={moveInAction} className="move-in-form"><label>Facility<select name="facilityId" required>{data.facilities.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Customer<select name="customerId" required>{data.customers.map(c=><option key={c.id} value={c.id}>{c.companyName||`${c.firstName} ${c.lastName}`}</option>)}</select></label><label>Unit<select name="unitId" required>{units.map(u=><option key={u.id} value={u.id}>{u.number} — {u.unitType.name} — R {Number(u.monthlyRate)}</option>)}</select></label><label>Reservation (optional)<select name="reservationId"><option value="">Direct move-in</option>{data.reservations.filter(r=>r.status==="ACTIVE").map(r=><option key={r.id} value={r.id}>{r.unit.number} / {r.customer.companyName||r.customer.firstName}</option>)}</select></label><label>Start date<input name="startDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label>Monthly rate override<input name="monthlyRate" type="number" step=".01"/></label><label>Initial charge<input name="initialCharge" type="number" step=".01" defaultValue="0"/></label><button className="button button-primary">Complete move-in</button></form></section></div>}

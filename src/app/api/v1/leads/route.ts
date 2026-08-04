@@ -1,8 +1,10 @@
-import { leads } from "@/lib/demo-data";
+import { apiError } from "@/lib/api";
+import { createCustomer, createLead, listLeasing } from "@/lib/leasing-service";
+import { requireScope } from "@/lib/scope";
 import { createLeadSchema } from "@/lib/validators";
 
-export function GET() {
-  return Response.json({ data: leads, meta: { count: leads.length } });
+export async function GET() {
+  try { const leads = (await listLeasing(await requireScope())).leads; return Response.json({ data: leads, meta: { count: leads.length } }); } catch (error) { return apiError(error); }
 }
 
 export async function POST(request: Request) {
@@ -21,15 +23,10 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json(
-    {
-      data: {
-        id: crypto.randomUUID(),
-        ...parsed.data,
-        stage: "NEW",
-        createdAt: new Date().toISOString(),
-      },
-    },
-    { status: 201 },
-  );
+  try {
+    const scope = await requireScope();
+    const customer = await createCustomer(scope, { firstName: parsed.data.firstName, lastName: parsed.data.lastName, email: parsed.data.email, phone: parsed.data.phone });
+    const data = await createLead(scope, { facilityId: parsed.data.facilityId, customerId: customer.id, desiredUnitTypeId: parsed.data.desiredUnitTypeId, source: parsed.data.source, notes: parsed.data.notes });
+    return Response.json({ data }, { status: 201 });
+  } catch (error) { return apiError(error); }
 }

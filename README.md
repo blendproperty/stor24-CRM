@@ -30,7 +30,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The current UI uses synthetic in-memory data so it runs before a database is connected. Prisma is the intended persistence boundary. Do not use customer data until authentication, authorisation, encryption, retention and audit controls have been implemented and reviewed.
+The leasing workspaces use PostgreSQL through Prisma and enforce current organisation/facility role assignments on the server. Other future modules may still contain labelled scaffold data. See [`docs/LEASING_CORE.md`](docs/LEASING_CORE.md).
 
 ## Validation
 

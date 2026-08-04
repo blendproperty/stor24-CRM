@@ -1,73 +1,13 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { addCustomerAction, moveOutAction, noticeAction, transferAction } from "@/app/actions/leasing";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
-import { tenants } from "@/lib/demo-data";
-
-export const metadata = { title: "Tenants" };
-
-export default function TenantsPage() {
-  return (
-    <div className="page-stack">
-      <PageHeader
-        eyebrow="Customer accounts"
-        title="Tenants"
-        description="Manage tenant profiles, occupancies, balances, documents and account history."
-        action={
-          <Link className="button button-primary" href="/operations/move-in">
-            <Plus size={16} /> New move-in
-          </Link>
-        }
-      />
-      <section className="summary-strip">
-        {[
-          ["Active tenants", "421"],
-          ["Business accounts", "68"],
-          ["Autopay enabled", "76%"],
-          ["Accounts overdue", "23"],
-        ].map(([label, value]) => (
-          <div className="summary-cell" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </section>
-      <section className="panel">
-        <div className="toolbar">
-          <label className="toolbar-search">
-            <Search size={16} />
-            <input placeholder="Search by name, account, unit or contact…" />
-          </label>
-          <button className="button button-secondary" type="button">Filters</button>
-        </div>
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Tenant</th>
-                <th>Account</th>
-                <th>Unit</th>
-                <th>Balance</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant.account}>
-                  <td className="primary-cell">
-                    {tenant.name}
-                    <span className="secondary-cell">{tenant.contact}</span>
-                  </td>
-                  <td>{tenant.account}</td>
-                  <td>{tenant.unit}</td>
-                  <td>{tenant.balance}</td>
-                  <td><StatusPill tone={tenant.tone}>{tenant.status}</StatusPill></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  );
-}
+import { listLeasing } from "@/lib/leasing-service";
+import { requireScope } from "@/lib/scope";
+export const metadata={title:"Tenants"};
+const today=()=>new Date().toISOString().slice(0,10);
+export default async function TenantsPage(){const data=await listLeasing(await requireScope());const open=data.tenancies.filter(t=>t.status==="ACTIVE"||t.status==="NOTICE_GIVEN");const available=data.facilities.flatMap(f=>f.units.filter(u=>u.status==="AVAILABLE"));return <div className="page-stack"><PageHeader eyebrow="Customer accounts" title="Customers & tenants" description="Organisation-scoped customer records and the complete active occupancy lifecycle." action={<Link href="/operations/move-in" className="button button-primary">New move-in</Link>}/>
+<section className="summary-strip">{[["Customers",data.customers.length],["Active tenants",open.length],["Notice given",open.filter(t=>t.status==="NOTICE_GIVEN").length],["Available units",available.length]].map(([l,v])=><div className="summary-cell" key={l}><span>{l}</span><strong>{v}</strong></div>)}</section>
+<section className="panel panel-spacious"><h2>Add customer</h2><form action={addCustomerAction} className="leasing-form"><select name="type"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select><input name="firstName" placeholder="First name"/><input name="lastName" placeholder="Last name"/><input name="companyName" placeholder="Company"/><input name="email" type="email" placeholder="Email"/><input name="phone" placeholder="Phone"/><button className="button button-primary">Add customer</button></form></section>
+<section className="panel"><div className="table-wrap"><table className="data-table"><thead><tr><th>Tenant</th><th>Account</th><th>Facility / unit</th><th>Balance</th><th>Status</th></tr></thead><tbody>{data.tenancies.map(t=>{const occ=t.occupancies[0];return <tr key={t.id}><td className="primary-cell">{t.customer.companyName||`${t.customer.firstName} ${t.customer.lastName}`}</td><td>{t.account.accountNumber}</td><td>{t.facility.name} / {occ?.unit.number??"—"}</td><td>R {Number(t.account.balance).toFixed(2)}</td><td><StatusPill>{t.status}</StatusPill></td></tr>})}</tbody></table></div></section>
+{open.length>0&&<section className="panel panel-spacious"><h2>Lifecycle commands</h2><div className="lifecycle-grid"><form action={transferAction} className="leasing-form leasing-form-stack"><strong>Transfer</strong><select name="tenancyId">{open.map(t=><option key={t.id} value={t.id}>{t.account.accountNumber}</option>)}</select><select name="toUnitId">{available.map(u=><option key={u.id} value={u.id}>{u.number}</option>)}</select><input type="date" name="effectiveAt" defaultValue={today()} required/><button className="button button-secondary">Transfer unit</button></form><form action={noticeAction} className="leasing-form leasing-form-stack"><strong>Give notice</strong><select name="tenancyId">{open.filter(t=>t.status==="ACTIVE").map(t=><option key={t.id} value={t.id}>{t.account.accountNumber}</option>)}</select><input type="date" name="noticeDate" defaultValue={today()} required/><input type="date" name="plannedMoveOut" required/><button className="button button-secondary">Record notice</button></form><form action={moveOutAction} className="leasing-form leasing-form-stack"><strong>Complete move-out</strong><select name="tenancyId">{open.map(t=><option key={t.id} value={t.id}>{t.account.accountNumber}</option>)}</select><input type="date" name="movedOutAt" defaultValue={today()} required/><input type="number" name="finalCharge" step=".01" defaultValue="0"/><button className="button button-primary">Move out</button></form></div></section>}</div>}

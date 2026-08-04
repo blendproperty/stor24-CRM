@@ -40,9 +40,19 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
+
+.leasing-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; align-items:end; margin:12px 0 24px; }
+.leasing-form input,.leasing-form select,.move-in-form input,.move-in-form select { width:100%; min-height:43px; padding:0 11px; border:1px solid var(--line); border-radius:10px; background:#fafbfc; }
+.leasing-form-stack { grid-template-columns:1fr; margin:0; padding:16px; border:1px solid var(--line); border-radius:14px; }
+.lifecycle-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.move-in-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+.move-in-form label { display:grid; gap:7px; color:var(--muted); font-size:12px; font-weight:650; }
+.move-in-form .button { align-self:end; }
+@media (max-width:760px){.lifecycle-grid,.move-in-form{grid-template-columns:1fr;}}
 
 .app-shell {
   min-height: 100vh;
