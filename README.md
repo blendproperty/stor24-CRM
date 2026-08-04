@@ -15,7 +15,7 @@ Cloud-first self-storage operations platform for Stor24, scaffolded from the obs
 - PostgreSQL/Prisma domain model
 - Multi-organisation and facility scoping
 - Tenant lifecycle, financial ledger, payments, tasking, integrations, RBAC and audit entities
-- Synthetic demo data only
+- Database-backed authentication, user administration, invitations, RBAC and security audit events
 - Docker standalone production image and VPS Compose configuration
 - GitHub Actions validation workflow
 
@@ -30,7 +30,13 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The leasing workspaces use PostgreSQL through Prisma and enforce current organisation/facility role assignments on the server. Other future modules may still contain labelled scaffold data. See [`docs/LEASING_CORE.md`](docs/LEASING_CORE.md).
+Authentication, user administration, and the leasing workspaces use PostgreSQL through Prisma. Leasing requests enforce current organisation and facility role assignments on the server. Modules outside those completed workstreams may still contain labelled scaffold data and must not be treated as production records. See [`docs/LEASING_CORE.md`](docs/LEASING_CORE.md).
+
+## Authentication and email
+
+Apply migrations before starting the updated application. `AUTH_SECRET` must contain at least 32 random characters. Account recovery uses hashed, 30-minute, single-use tokens and never returns whether an account exists. Configure `EMAIL_PROVIDER=resend`, `EMAIL_FROM`, and `RESEND_API_KEY` for delivery; provider credentials remain server-only. Password changes and resets increment `sessionVersion`, invalidating every existing session for that user.
+
+See [`docs/OWNER_RECOVERY_RUNBOOK.md`](docs/OWNER_RECOVERY_RUNBOOK.md) for the controlled owner-recovery procedure. Do not place reset or bootstrap tokens in tickets, logs, screenshots, or source control.
 
 ## Validation
 
@@ -69,7 +75,7 @@ Example lead payload:
 }
 ```
 
-Route handlers are public HTTP boundaries. Authentication, facility-scoped authorisation, rate limiting, audit logging and idempotency must be added before production use.
+Route handlers are security boundaries. Protected handlers must call `requirePermission` or `requireSession`; Proxy redirects are an optimistic user-experience check only.
 
 ## Architecture
 
@@ -83,12 +89,11 @@ The scaffold follows a modular-monolith path:
 
 Recommended next implementation slices:
 
-1. Auth.js or an enterprise OIDC provider with MFA and scoped RBAC.
-2. Repository layer backed by Prisma and PostgreSQL.
-3. Transactional lead/reservation/move-in service.
-4. Immutable subledger and payment-provider adapter.
-5. Access-control command outbox and reconciliation worker.
-6. Test suite, seeded synthetic database and CI pipeline.
+1. MFA or enterprise OIDC for staff authentication.
+2. Immutable subledger and payment-provider adapter.
+3. Access-control command outbox and reconciliation worker.
+4. Database integration tests against disposable PostgreSQL.
+5. Replace remaining labelled scaffold modules with scoped repositories.
 
 ## Safety boundaries
 

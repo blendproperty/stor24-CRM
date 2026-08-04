@@ -13,7 +13,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed:demo": "tsx prisma/seed-demo.ts",
     "test": "tsx --test tests/*.test.ts",
-    "check": "npm run typecheck && npm run lint && npm run build"
+    "check": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",

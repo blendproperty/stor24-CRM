@@ -105,6 +105,7 @@ model Organisation {
   auditEvents AuditEvent[]
   integrations IntegrationConnection[]
   invitations UserInvitation[]
+  passwordResetTokens PasswordResetToken[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -379,16 +380,43 @@ model User {
   name           String
   passwordHash   String?
   active         Boolean      @default(true)
+  sessionVersion Int          @default(0)
+  passwordChangedAt DateTime?
   roleAssignments RoleAssignment[]
   assignedLeads  Lead[]
   ledgerEntries  LedgerEntry[]
   assignedTasks  Task[]       @relation("TaskAssignee")
   createdTasks   Task[]       @relation("TaskCreator")
   auditEvents    AuditEvent[]
+  passwordResetTokens PasswordResetToken[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
   @@unique([organisationId, email])
+}
+
+model PasswordResetToken {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String       @unique
+  expiresAt      DateTime
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([userId, expiresAt])
+  @@index([organisationId, createdAt])
+}
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
 }
 
 model Role {

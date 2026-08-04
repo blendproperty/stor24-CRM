@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type Props =
   | { mode: "login" }
@@ -75,6 +76,7 @@ export function PortalAuthForm(props: Props) {
         {busy ? "Securing access…" : props.mode === "setup" ? "Create owner account" : "Sign in to portal"}
         <ArrowRight size={18} />
       </button>
+      {props.mode === "login" ? <p className="portal-auth-footer"><Link href="/forgot-password">Forgot password?</Link></p> : null}
     </form>
   );
 }

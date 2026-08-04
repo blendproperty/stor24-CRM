@@ -18,6 +18,7 @@ import {
   Search,
   Settings,
   ShieldAlert,
+  ScrollText,
   SlidersHorizontal,
   Users,
   Warehouse,
@@ -43,12 +44,13 @@ const navigation = [
   { href: "/prorate", label: "Prorate calculator", icon: Calculator },
   { href: "/map", label: "Facility map", icon: LandPlot },
   { href: "/phone", label: "Phone integration", icon: PhoneCall },
+  { href: "/audit", label: "Security audit", icon: ScrollText },
 ];
 
 export function AppShell({ children, session }: { children: React.ReactNode; session: SessionPayload | null }) {
   const pathname = usePathname();
   const router = useRouter();
-  const publicPage = pathname === "/login" || pathname.startsWith("/invite/") || pathname.startsWith("/setup/");
+  const publicPage = pathname === "/login" || pathname === "/forgot-password" || pathname.startsWith("/reset-password/") || pathname.startsWith("/invite/") || pathname.startsWith("/setup/");
   if (publicPage) return children;
 
   async function signOut() {

@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sessionCookieName, verifySessionToken } from "@/lib/session";
+import { db } from "@/lib/db";
 
-const publicPagePrefixes = ["/login", "/invite/", "/setup/", "/brand/"];
-const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/v1/invitations/accept"];
+const publicPagePrefixes = ["/login", "/forgot-password", "/reset-password/", "/invite/", "/setup/", "/brand/"];
+const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/v1/invitations/accept"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -10,18 +11,22 @@ export async function proxy(request: NextRequest) {
     publicPagePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix)) ||
     publicApiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
   const session = await verifySessionToken(request.cookies.get(sessionCookieName)?.value);
+  const user = session ? await db.user.findUnique({ where: { id: session.userId }, select: { active: true, sessionVersion: true } }) : null;
+  const validSession = Boolean(session && user?.active && user.sessionVersion === session.sessionVersion);
 
-  if (pathname === "/login" && session) {
+  if (pathname === "/login" && validSession) {
     return NextResponse.redirect(new URL("/", request.url));
   }
   if (isPublic) return NextResponse.next();
-  if (!session && pathname.startsWith("/api/")) {
+  if (!validSession && pathname.startsWith("/api/")) {
     return Response.json({ error: { code: "UNAUTHENTICATED", message: "Please sign in." } }, { status: 401 });
   }
-  if (!session) {
+  if (!validSession) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete(sessionCookieName);
+    return response;
   }
   return NextResponse.next();
 }

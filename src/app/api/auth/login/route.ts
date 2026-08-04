@@ -2,20 +2,13 @@ import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { setSession } from "@/lib/session";
 import { loginSchema } from "@/lib/validators";
-
-const failures = new Map<string, { count: number; resetAt: number }>();
-
-function sameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  const allowed = new Set([new URL(request.url).origin, process.env.APP_URL].filter(Boolean));
-  return !origin || allowed.has(origin);
-}
+import { privacyHash, rateLimit, requestIp, sameOrigin } from "@/lib/request-security";
+import { hash } from "bcryptjs";
 
 export async function POST(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "Request rejected." }, { status: 403 });
-  const key = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const limit = failures.get(key);
-  if (limit && limit.count >= 5 && limit.resetAt > Date.now()) {
+  const ip = requestIp(request);
+  if (await rateLimit(`login:${privacyHash(ip)}`, 5, 15 * 60 * 1000)) {
     return Response.json({ error: "Too many attempts. Try again in 15 minutes." }, { status: 429 });
   }
 
@@ -25,18 +18,20 @@ export async function POST(request: Request) {
     where: { email: parsed.data.email, active: true },
     include: { roleAssignments: { include: { role: true } } },
   });
-  const valid = Boolean(user?.passwordHash && (await compare(parsed.data.password, user.passwordHash)));
+  const comparisonHash = user?.passwordHash ?? await hash("constant-time-invalid-password", 12);
+  const valid = await compare(parsed.data.password, comparisonHash);
   if (!user || !valid) {
-    failures.set(key, { count: (limit?.count ?? 0) + 1, resetAt: Date.now() + 15 * 60 * 1000 });
+    if (user) await db.auditEvent.create({ data: { organisationId: user.organisationId, actorId: user.id, action: "user.login.failed", entityType: "User", entityId: user.id, ipHash: privacyHash(ip) } });
     return Response.json({ error: "Email or password is incorrect." }, { status: 401 });
   }
 
-  failures.delete(key);
+  await db.auditEvent.create({ data: { organisationId: user.organisationId, actorId: user.id, action: "user.login.succeeded", entityType: "User", entityId: user.id, ipHash: privacyHash(ip) } });
   await setSession({
     userId: user.id,
     name: user.name,
     email: user.email,
     role: user.roleAssignments[0]?.role.name ?? "Unassigned",
+    sessionVersion: user.sessionVersion,
   });
   return Response.json({ data: { name: user.name } });
 }
