@@ -48,6 +48,6 @@ export async function POST(request: Request) {
     return created;
   });
 
-  await setSession({ userId: user.id, name: user.name, email: user.email, role: role.name });
+  await setSession({ userId: user.id, name: user.name, email: user.email, role: role.name, sessionVersion: user.sessionVersion });
   return Response.json({ data: { ready: true } }, { status: 201 });
 }

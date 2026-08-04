@@ -1,5 +1,6 @@
 import { BadgePercent, Building2, Cable, FileSignature, KeyRound, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { ChangePasswordForm } from "@/components/change-password-form";
 
 export const metadata = { title: "Settings" };
 
@@ -25,6 +26,7 @@ export default function SettingsPage() {
           <article className="module-card" key={title}><Icon size={22} /><h3>{title}</h3><p>{copy}</p></article>
         ))}
       </section>
+      <section className="panel panel-spacious"><div className="panel-heading"><div><h2>Account password</h2><p className="panel-subtitle">Update your password and invalidate all existing sessions.</p></div><ShieldCheck className="positive-icon" /></div><ChangePasswordForm /></section>
     </div>
   );
 }

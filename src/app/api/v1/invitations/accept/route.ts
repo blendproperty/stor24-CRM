@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       return createdUser;
     });
 
-    await setSession({ userId: user.id, name: user.name, email: user.email, role: role.name });
+    await setSession({ userId: user.id, name: user.name, email: user.email, role: role.name, sessionVersion: user.sessionVersion });
     return Response.json({ data: { id: user.id, name: user.name, email: user.email, status: "ACTIVE" } });
   } catch {
     return Response.json({ error: { code: "ACCEPTANCE_FAILED", message: "The invitation could not be accepted." } }, { status: 409 });

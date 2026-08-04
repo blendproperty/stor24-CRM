@@ -29,7 +29,7 @@ export async function ensureStor24Workspace() {
     }),
     ...[
       { name: "Organisation owner", permissions: ["*"] },
-      { name: "Facility manager", permissions: ["facility.*", "reports.view"] },
+      { name: "Facility manager", permissions: ["facility.*", "users.view", "reports.view"] },
       { name: "Sales / leasing", permissions: ["leads.*", "reservations.*", "move_in.create"] },
       { name: "Collections", permissions: ["collections.*", "access.suspend", "access.restore"] },
       { name: "Finance", permissions: ["ledger.*", "payments.*", "reports.financial"] },

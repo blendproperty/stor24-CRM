@@ -51,3 +51,12 @@ export const ownerSetupSchema = loginSchema.extend({
   name: z.string().trim().min(2).max(120),
   password: strongPasswordSchema,
 });
+
+export const forgotPasswordSchema = z.object({ email: z.string().trim().toLowerCase().email() });
+export const resetPasswordSchema = z.object({ token: z.string().min(32).max(200), password: strongPasswordSchema });
+export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), password: strongPasswordSchema });
+export const updateUserSchema = z.object({
+  active: z.boolean().optional(),
+  roleName: createInvitationSchema.shape.roleName.optional(),
+  facilityCode: z.string().trim().max(40).nullable().optional(),
+}).refine((value) => Object.keys(value).length > 0);

@@ -12,6 +12,7 @@
     "db:validate": "prisma validate",
     "db:migrate:deploy": "prisma migrate deploy",
     "check": "npm run typecheck && npm run lint && npm run build"
+    ,"test": "node --experimental-strip-types --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
