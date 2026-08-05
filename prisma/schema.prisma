@@ -77,6 +77,31 @@ enum TaskPriority {
   URGENT
 }
 
+enum MaintenanceStatus {
+  OPEN
+  SCHEDULED
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementType {
+  RECEIPT
+  SALE
+  RETURN
+  ADJUSTMENT
+  DAMAGE
+  TRANSFER
+}
+
+enum DailyCloseStatus {
+  OPEN
+  READY
+  CLOSED
+  REOPENED
+}
+
 enum InvitationStatus {
   PENDING
   ACCEPTED
@@ -98,6 +123,13 @@ model Organisation {
   auditEvents AuditEvent[]
   integrations IntegrationConnection[]
   invitations UserInvitation[]
+  configurationProfiles ConfigurationProfile[]
+  chargeDefinitions ChargeDefinition[]
+  discountPlans DiscountPlan[]
+  products Product[]
+  maintenanceRequests MaintenanceRequest[]
+  unitNotes UnitNote[]
+  dailyCloses DailyClose[]
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 }
@@ -140,6 +172,11 @@ model Facility {
   roleAssignments RoleAssignment[]
   tasks          Task[]
   integrations   IntegrationConnection[]
+  configurationProfiles ConfigurationProfile[]
+  products       Product[]
+  maintenanceRequests MaintenanceRequest[]
+  unitNotes      UnitNote[]
+  dailyCloses    DailyClose[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -178,6 +215,8 @@ model Unit {
   taxRate     Decimal     @default(0) @db.Decimal(7, 4)
   reservations Reservation[]
   occupancies Occupancy[]
+  notes       UnitNote[]
+  maintenanceRequests MaintenanceRequest[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -377,6 +416,10 @@ model User {
   assignedTasks  Task[]       @relation("TaskAssignee")
   createdTasks   Task[]       @relation("TaskCreator")
   auditEvents    AuditEvent[]
+  unitNotes      UnitNote[]
+  maintenanceRequests MaintenanceRequest[]
+  stockMovements StockMovement[]
+  dailyCloses    DailyClose[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -451,6 +494,162 @@ model IntegrationConnection {
 
   @@index([organisationId, category])
   @@unique([organisationId, facilityId, category, provider])
+}
+
+model ConfigurationProfile {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  domain         String
+  name           String
+  status         String       @default("DRAFT")
+  config         Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, facilityId, domain, name])
+  @@index([organisationId, domain, status])
+}
+
+model ChargeDefinition {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  amount         Decimal?     @db.Decimal(14, 2)
+  calculation    String       @default("FIXED")
+  taxable        Boolean      @default(true)
+  active         Boolean      @default(true)
+  config         Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, code])
+}
+
+model DiscountPlan {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  discountType   String
+  value          Decimal      @db.Decimal(14, 4)
+  active         Boolean      @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  rules          Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organisationId, code])
+}
+
+model UnitNote {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String
+  facility       Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  unitId         String
+  unit           Unit         @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User         @relation(fields: [authorId], references: [id])
+  note           String
+  pinned         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organisationId, facilityId, createdAt])
+  @@index([unitId, createdAt])
+}
+
+model MaintenanceRequest {
+  id             String            @id @default(cuid())
+  organisationId String
+  organisation   Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String
+  facility       Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  unitId         String?
+  unit           Unit?             @relation(fields: [unitId], references: [id])
+  assignedToId   String?
+  assignedTo     User?             @relation(fields: [assignedToId], references: [id])
+  title          String
+  description    String?
+  status         MaintenanceStatus @default(OPEN)
+  priority       TaskPriority      @default(NORMAL)
+  dueAt          DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([organisationId, facilityId, status, dueAt])
+  @@index([unitId, status])
+}
+
+model Product {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String
+  facility       Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  sku            String
+  name           String
+  category       String
+  barcode        String?
+  costPrice      Decimal      @default(0) @db.Decimal(14, 2)
+  sellingPrice   Decimal      @db.Decimal(14, 2)
+  quantityOnHand Int          @default(0)
+  reorderPoint   Int          @default(0)
+  active         Boolean      @default(true)
+  movements      StockMovement[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([facilityId, sku])
+  @@index([organisationId, facilityId, active])
+}
+
+model StockMovement {
+  id             String            @id @default(cuid())
+  productId      String
+  product        Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  type           StockMovementType
+  quantity       Int
+  unitCost       Decimal?          @db.Decimal(14, 2)
+  reason         String?
+  reference      String?
+  createdById    String
+  createdBy      User              @relation(fields: [createdById], references: [id])
+  createdAt      DateTime          @default(now())
+
+  @@index([productId, createdAt])
+}
+
+model DailyClose {
+  id             String           @id @default(cuid())
+  organisationId String
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String
+  facility       Facility         @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  businessDate   DateTime         @db.Date
+  status         DailyCloseStatus @default(OPEN)
+  checks         Json
+  expectedCash   Decimal          @default(0) @db.Decimal(14, 2)
+  countedCash    Decimal?         @db.Decimal(14, 2)
+  variance       Decimal?         @db.Decimal(14, 2)
+  notes          String?
+  closedById     String?
+  closedBy       User?            @relation(fields: [closedById], references: [id])
+  closedAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([facilityId, businessDate])
+  @@index([organisationId, status, businessDate])
 }
 
 model AuditEvent {

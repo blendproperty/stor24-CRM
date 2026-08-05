@@ -40,9 +40,13 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
+
+button:not(:disabled) { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .62; }
 
 .app-shell {
   min-height: 100vh;
@@ -691,6 +695,23 @@ select {
 .summary-cell strong {
   display: block;
 }
+
+.setup-layout { display: grid; grid-template-columns: minmax(260px, .65fr) minmax(0, 1.35fr); gap: 20px; }
+.setup-nav { display: flex; flex-direction: column; overflow: hidden; }
+.setup-nav > button { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 0; border-bottom: 1px solid var(--line); background: white; color: var(--ink); text-align: left; }
+.setup-nav > button:last-child { border-bottom: 0; }
+.setup-nav > button:hover, .setup-nav > .setup-nav-active { background: #fff8f4; box-shadow: inset 3px 0 var(--orange); }
+.setup-nav > button > span:first-child { display: flex; align-items: center; gap: 9px; }
+.setup-nav strong { font-size: 12px; }
+.invite-form textarea { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 9px; resize: vertical; }
+.check-label { display: flex !important; align-items: flex-start; gap: 10px; }
+.check-label input { width: auto !important; min-height: auto !important; margin-top: 3px; }
+.safe-config-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px; border-radius: 10px; background: var(--amber-soft); color: var(--amber); font-size: 12px; line-height: 1.5; }
+.safe-config-note svg { flex: none; }
+.form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.map-unit small { display: block; margin-top: 4px; font-size: 8px; opacity: .75; }
+
+@media (max-width: 900px) { .setup-layout { grid-template-columns: 1fr; } }
 
 .summary-cell span {
   color: var(--muted);

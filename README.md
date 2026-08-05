@@ -2,7 +2,7 @@
 
 Cloud-first self-storage operations platform for Stor24, scaffolded from the observed SiteLink workflows and the product blueprint in [`docs/SITELINK_CLOUD_SOLUTION_ANALYSIS.md`](docs/SITELINK_CLOUD_SOLUTION_ANALYSIS.md).
 
-## Included in this scaffold
+## Included
 
 - Next.js App Router, React, TypeScript and Tailwind CSS
 - Responsive Stor24 operations shell
@@ -30,7 +30,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-The current UI uses synthetic in-memory data so it runs before a database is connected. Prisma is the intended persistence boundary. Do not use customer data until authentication, authorisation, encryption, retention and audit controls have been implemented and reviewed.
+The operations and company-setup workspaces now use authenticated, permission-checked Prisma APIs. Several other early product screens still use synthetic data and remain scaffolds. See [`docs/OPERATIONS_SETUP.md`](docs/OPERATIONS_SETUP.md) for implemented domains, migration, API contracts and connector safety.
 
 ## Validation
 
@@ -39,6 +39,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm run db:validate
+npm run test
 ```
 
 ## Evidence
@@ -54,6 +55,9 @@ npm run db:validate
 - `GET /api/health`
 - `GET /api/v1/leads`
 - `POST /api/v1/leads`
+- `GET|POST /api/v1/operations`
+- `PATCH /api/v1/operations/tasks/:id`
+- `GET|PUT /api/v1/configuration`
 
 Example lead payload:
 
@@ -69,7 +73,7 @@ Example lead payload:
 }
 ```
 
-Route handlers are public HTTP boundaries. Authentication, facility-scoped authorisation, rate limiting, audit logging and idempotency must be added before production use.
+Operations and configuration handlers enforce session authentication, organisation/facility permission scope, Zod validation and audit logging. Rate limiting and idempotency should be added at the gateway before production use.
 
 ## Architecture
 
