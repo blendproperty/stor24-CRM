@@ -1,20 +1,22 @@
-import { Download } from "lucide-react";
-import { ModuleHub } from "@/components/module-hub";
 import { PageHeader } from "@/components/page-header";
-import { reportGroups } from "@/lib/module-catalog";
+import { ReportsWorkspace } from "@/components/reports-workspace";
+import { requireSession } from "@/lib/auth-guards";
+import { availableReports } from "@/lib/reporting";
+import { hasPermission } from "@/lib/permissions";
 
 export const metadata = { title: "Reports" };
 
-export default function ReportsPage() {
+export default async function ReportsPage() {
+  const session = await requireSession();
+  const permissions = session.permissions;
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="Analytics"
         title="Reports"
         description="Governed operational and financial reporting for individual facilities and the portfolio."
-        action={<button className="button button-primary"><Download size={16} /> New export</button>}
       />
-      <ModuleHub groups={reportGroups} />
+      <ReportsWorkspace reports={availableReports(permissions)} canExport={hasPermission(permissions, "reports.export")} canSchedule={hasPermission(permissions, "reports.schedule")} />
     </div>
   );
 }

@@ -29,11 +29,11 @@ export async function ensureStor24Workspace() {
     }),
     ...[
       { name: "Organisation owner", permissions: ["*"] },
-      { name: "Facility manager", permissions: ["facility.*", "users.view", "operations.*", "inventory.*", "daily_close.*", "configuration.view", "facility_map.view", "phone.view", "reports.view"] },
-      { name: "Sales / leasing", permissions: ["leads.*", "reservations.*", "move_in.create", "operations.view", "facility_map.view", "phone.view"] },
-      { name: "Collections", permissions: ["collections.*", "access.suspend", "access.restore"] },
-      { name: "Finance", permissions: ["ledger.*", "payments.*", "daily_close.*", "configuration.view", "reports.financial"] },
-      { name: "Auditor / read only", permissions: ["*.view", "reports.export"] },
+      { name: "Facility manager", permissions: ["facility.*", "users.view", "operations.*", "inventory.*", "daily_close.*", "configuration.view", "facility_map.view", "phone.view", "reports.view", "reports.export", "communications.view", "integrations.view"] },
+      { name: "Sales / leasing", permissions: ["leads.*", "reservations.*", "move_in.create", "operations.view", "facility_map.view", "phone.view", "reports.sales", "communications.view"] },
+      { name: "Collections", permissions: ["collections.*", "access.suspend", "access.restore", "reports.collections", "communications.view"] },
+      { name: "Finance", permissions: ["ledger.*", "payments.*", "daily_close.*", "configuration.view", "reports.view", "reports.financial", "reports.export", "reports.schedule", "integrations.view"] },
+      { name: "Auditor / read only", permissions: ["*.view", "reports.financial", "reports.export"] },
     ].map((role) =>
       db.role.upsert({
         where: { organisationId_name: { organisationId: organisation.id, name: role.name } },

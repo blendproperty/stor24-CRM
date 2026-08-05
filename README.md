@@ -16,6 +16,10 @@ Cloud-first self-storage operations platform for Stor24, scaffolded from the obs
 - Multi-organisation and facility scoping
 - Tenant lifecycle, financial ledger, payments, tasking, integrations, RBAC and audit entities
 - Database-backed authentication, user administration, invitations, RBAC and security audit events
+- Permission-aware report catalogue, validated CSV/JSON exports and scheduled-report persistence
+- Versioned communication templates and privacy-safe delivery logs
+- Observable integration health plus idempotent webhook inbox/transactional outbox foundations
+- Vendor-neutral provider contracts for payments, access, email, SMS, accounting and website leads
 - Docker standalone production image and VPS Compose configuration
 - GitHub Actions validation workflow
 
@@ -66,6 +70,10 @@ npm run test
 - `GET|POST /api/v1/operations`
 - `PATCH /api/v1/operations/tasks/:id`
 - `GET|PUT /api/v1/configuration`
+- `GET /api/v1/reports`
+- `GET /api/v1/reports/export`
+- `GET /api/v1/integrations/health`
+- `POST /api/v1/webhooks/inbound/[provider]`
 
 Example lead payload:
 
@@ -84,6 +92,8 @@ Example lead payload:
 Operations and configuration handlers enforce session authentication, organisation/facility permission scope, Zod validation and audit logging. Rate limiting and idempotency should be added at the gateway before production use.
 Route handlers are security boundaries. Protected handlers must call `requirePermission` or `requireSession`; Proxy redirects are an optimistic user-experience check only.
 Operations and configuration handlers additionally enforce organisation/facility scope, Zod validation and audit logging. Rate limiting and idempotency should be added at the gateway before production use.
+
+The reporting and integration endpoints are protected by the portal session except the inbound webhook boundary, which fails closed until a signing-key hash is configured. See [`docs/REPORTING_INTEGRATIONS.md`](docs/REPORTING_INTEGRATIONS.md) and the expanded evidence gap matrix for exact implemented/config-required boundaries.
 
 ## Architecture
 

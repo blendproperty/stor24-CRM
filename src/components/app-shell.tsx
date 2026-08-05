@@ -21,6 +21,8 @@ import {
   ScrollText,
   SlidersHorizontal,
   Users,
+  Webhook,
+  MessagesSquare,
   Warehouse,
 } from "lucide-react";
 import { clsx } from "clsx";
@@ -40,6 +42,8 @@ const navigation = [
   { href: "/company", label: "Company & setup", icon: Settings },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/graphs", label: "Graphs", icon: BarChart3 },
+  { href: "/communications", label: "Communications", icon: MessagesSquare },
+  { href: "/integrations", label: "Integrations", icon: Webhook },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/prorate", label: "Prorate calculator", icon: Calculator },
   { href: "/map", label: "Facility map", icon: LandPlot },
