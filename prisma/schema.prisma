@@ -116,6 +116,33 @@ enum InvitationStatus {
   EXPIRED
 }
 
+enum DeliveryStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
+enum IntegrationHealthStatus {
+  DISCONNECTED
+  DISABLED
+  CONFIGURED
+  CONNECTED
+  CONFIG_REQUIRED
+  HEALTHY
+  DEGRADED
+  FAILED
+}
+
+enum ReportRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+}
+
 model Organisation {
   id         String     @id @default(cuid())
   name       String
@@ -129,6 +156,12 @@ model Organisation {
   tasks      Task[]
   auditEvents AuditEvent[]
   integrations IntegrationConnection[]
+  reportSchedules ReportSchedule[]
+  reportRuns ReportRun[]
+  communicationTemplates CommunicationTemplate[]
+  communications CommunicationLog[]
+  webhookInbox WebhookInbox[]
+  webhookOutbox WebhookOutbox[]
   invitations UserInvitation[]
   configurationProfiles ConfigurationProfile[]
   chargeDefinitions ChargeDefinition[]
@@ -186,6 +219,11 @@ model Facility {
   unitNotes      UnitNote[]
   dailyCloses    DailyClose[]
   auditEvents    AuditEvent[]
+  reportSchedules ReportSchedule[]
+  reportRuns      ReportRun[]
+  communications CommunicationLog[]
+  webhookInbox   WebhookInbox[]
+  webhookOutbox  WebhookOutbox[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -251,6 +289,7 @@ model Customer {
   tenancies      Tenancy[]
   accounts       Account[]
   tasks          Task[]
+  communications CommunicationLog[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -432,6 +471,7 @@ model User {
   stockMovements StockMovement[]
   dailyCloses    DailyClose[]
   passwordResetTokens PasswordResetToken[]
+  reportRuns     ReportRun[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -522,9 +562,16 @@ model IntegrationConnection {
   facility       Facility?    @relation(fields: [facilityId], references: [id])
   category       String
   provider       String
-  status         String       @default("DISCONNECTED")
+  status         IntegrationHealthStatus @default(DISCONNECTED)
   config         Json
   lastHealthAt   DateTime?
+  lastSuccessAt  DateTime?
+  lastFailureAt  DateTime?
+  consecutiveFailures Int     @default(0)
+  failureCode    String?
+  failureMessage String?
+  webhookInbox   WebhookInbox[]
+  webhookOutbox  WebhookOutbox[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -686,6 +733,156 @@ model DailyClose {
 
   @@unique([facilityId, businessDate])
   @@index([organisationId, status, businessDate])
+}
+
+model ReportSchedule {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  reportKey      String
+  name           String
+  parameters     Json
+  format         String       @default("CSV")
+  cronExpression String
+  timezone       String       @default("Africa/Johannesburg")
+  recipients     String[]
+  permission     String
+  active         Boolean      @default(false)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  runs           ReportRun[]
+
+  @@index([organisationId, active, nextRunAt])
+  @@index([facilityId, reportKey])
+}
+
+model ReportRun {
+  id             String          @id @default(cuid())
+  organisationId String
+  organisation   Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?       @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  scheduleId     String?
+  schedule       ReportSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  requestedById  String?
+  requestedBy    User?           @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  reportKey      String
+  parameters     Json
+  format         String
+  status         ReportRunStatus @default(QUEUED)
+  rowCount       Int?
+  storageKey     String?
+  failureCode    String?
+  failureMessage String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime        @default(now())
+
+  @@index([organisationId, status, createdAt])
+  @@index([scheduleId, createdAt])
+}
+
+model CommunicationTemplate {
+  id             String       @id @default(cuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  key            String
+  name           String
+  channel        String
+  subject        String?
+  body           String
+  variables      String[]
+  version        Int          @default(1)
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  communications CommunicationLog[]
+
+  @@unique([organisationId, key, version])
+  @@index([organisationId, channel, active])
+}
+
+model CommunicationLog {
+  id             String        @id @default(cuid())
+  organisationId String
+  organisation   Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?     @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  templateId     String?
+  template       CommunicationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  channel        String
+  recipientHash  String
+  provider       String?
+  providerRef    String?
+  status         DeliveryStatus @default(PENDING)
+  idempotencyKey String         @unique
+  failureCode    String?
+  failureMessage String?
+  queuedAt       DateTime       @default(now())
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  failedAt       DateTime?
+
+  @@index([organisationId, status, queuedAt])
+  @@index([customerId, queuedAt])
+}
+
+model WebhookInbox {
+  id             String         @id @default(cuid())
+  organisationId String
+  organisation   Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?      @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  connectionId   String?
+  connection     IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  provider       String
+  eventType      String
+  externalEventId String
+  payload        Json
+  headers        Json?
+  status         DeliveryStatus @default(PENDING)
+  attempts       Int            @default(0)
+  nextAttemptAt  DateTime?
+  processedAt    DateTime?
+  failureCode    String?
+  failureMessage String?
+  receivedAt     DateTime       @default(now())
+
+  @@unique([organisationId, provider, externalEventId])
+  @@index([organisationId, status, nextAttemptAt])
+}
+
+model WebhookOutbox {
+  id             String         @id @default(cuid())
+  organisationId String
+  organisation   Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?      @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  connectionId   String?
+  connection     IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  destination    String
+  payload        Json
+  idempotencyKey String         @unique
+  status         DeliveryStatus @default(PENDING)
+  attempts       Int            @default(0)
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  responseStatus Int?
+  failureCode    String?
+  failureMessage String?
+  createdAt      DateTime       @default(now())
+
+  @@index([organisationId, status, nextAttemptAt])
+  @@index([aggregateType, aggregateId, createdAt])
 }
 
 model AuditEvent {
