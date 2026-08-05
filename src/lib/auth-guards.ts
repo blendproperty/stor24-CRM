@@ -6,7 +6,9 @@ import { ZodError } from "zod";
 export async function requireSession() {
   const session = await getSession();
   if (!session) throw new Error("UNAUTHENTICATED");
-  return session;
+  const user = await db.user.findUnique({ where: { id: session.userId }, include: { roleAssignments: { include: { role: true, facility: true } } } });
+  if (!user?.active || user.sessionVersion !== session.sessionVersion) throw new Error("UNAUTHENTICATED");
+  return { ...session, user, permissions: user.roleAssignments.flatMap((assignment) => assignment.role.permissions) };
 }
 
 export async function requireOwner() {
@@ -16,21 +18,17 @@ export async function requireOwner() {
 }
 
 export async function requirePermission(permission: string, facilityId?: string) {
-  const session = await requireSession();
-  const user = await db.user.findUnique({
-    where: { id: session.userId },
-    include: { roleAssignments: { include: { role: true } } },
-  });
-  if (!user || !user.active) throw new Error("FORBIDDEN");
+  const auth = await requireSession();
+  const user = auth.user;
 
   const matchingAssignments = user.roleAssignments.filter((assignment) => {
     if (facilityId && assignment.facilityId && assignment.facilityId !== facilityId) return false;
     return hasPermission(assignment.role.permissions, permission);
   });
-  const allowed = session.role === "Organisation owner" || matchingAssignments.length > 0;
+  const allowed = auth.role === "Organisation owner" || matchingAssignments.length > 0;
   if (!allowed) throw new Error("FORBIDDEN");
-  const organisationWide = session.role === "Organisation owner" || matchingAssignments.some((assignment) => assignment.facilityId === null);
-  return { session, user, organisationId: user.organisationId, allowedFacilityIds: organisationWide ? null : matchingAssignments.map((assignment) => assignment.facilityId!).filter(Boolean) };
+  const organisationWide = auth.role === "Organisation owner" || matchingAssignments.some((assignment) => assignment.facilityId === null);
+  return { ...auth, organisationId: user.organisationId, allowedFacilityIds: organisationWide ? null : matchingAssignments.map((assignment) => assignment.facilityId!).filter(Boolean) };
 }
 
 export function authErrorResponse(error: unknown) {

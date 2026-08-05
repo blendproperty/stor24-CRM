@@ -7,3 +7,7 @@ export function permissionMatches(granted: string, required: string) {
 export function hasPermission(grants: string[], required: string) {
   return grants.some((granted) => permissionMatches(granted, required));
 }
+
+export function permissionGranted(grants: string[], permission: string) {
+  return hasPermission(grants, permission);
+}

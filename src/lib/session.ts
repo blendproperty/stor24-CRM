@@ -8,6 +8,7 @@ export type SessionPayload = JWTPayload & {
   name: string;
   email: string;
   role: string;
+  sessionVersion: number;
 };
 
 function sessionKey() {
@@ -30,7 +31,7 @@ export async function verifySessionToken(token?: string): Promise<SessionPayload
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, sessionKey(), { algorithms: ["HS256"] });
-    if (!payload.userId || !payload.email || !payload.name || !payload.role) return null;
+    if (!payload.userId || !payload.email || !payload.name || !payload.role || !Number.isInteger(payload.sessionVersion)) return null;
     return payload as SessionPayload;
   } catch {
     return null;
@@ -47,6 +48,7 @@ export async function setSession(payload: Omit<SessionPayload, keyof JWTPayload>
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
+    priority: "high",
     path: "/",
     maxAge: 60 * 60 * 8,
   });

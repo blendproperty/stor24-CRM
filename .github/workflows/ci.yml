@@ -19,8 +19,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run db:generate
       - run: npm run typecheck
       - run: npm run lint
+      - run: npm test
       - run: npm run db:validate
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/stor24_crm

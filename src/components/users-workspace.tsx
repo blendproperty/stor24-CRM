@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Link2, Plus, Search, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
+import { Check, Link2, Plus, Search, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
@@ -17,19 +17,13 @@ type Invitation = {
 };
 
 type UserRow = {
-  id?: string;
+  id: string;
   name: string;
   email: string;
   role: string;
   scope: string;
   active?: boolean;
 };
-
-const syntheticUsers: UserRow[] = [
-  { name: "Brett Dovey", email: "brett@example.test", role: "Organisation owner", scope: "All facilities", active: true },
-  { name: "Synthetic Manager", email: "manager@example.test", role: "Facility manager", scope: "Stor24 Randburg", active: true },
-  { name: "Synthetic Finance", email: "finance@example.test", role: "Finance", scope: "All facilities", active: true },
-];
 
 const roles = [
   ["Organisation owner", "Full portfolio control"],
@@ -44,10 +38,9 @@ export function UsersWorkspace() {
   const [open, setOpen] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [persistedUsers, setPersistedUsers] = useState<UserRow[]>([]);
-  const [inviteUrl, setInviteUrl] = useState("");
+  const [invitationSent, setInvitationSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/invitations", { cache: "no-store" });
@@ -75,7 +68,7 @@ export function UsersWorkspace() {
   async function submitInvitation(formData: FormData) {
     setBusy(true);
     setError("");
-    setInviteUrl("");
+    setInvitationSent(false);
     const response = await fetch("/api/v1/invitations", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -92,7 +85,7 @@ export function UsersWorkspace() {
       setError(payload.error?.message ?? "The invitation could not be created.");
       return;
     }
-    setInviteUrl(payload.data.inviteUrl);
+    setInvitationSent(payload.data.delivery === "SENT");
     await load();
   }
 
@@ -101,13 +94,14 @@ export function UsersWorkspace() {
     if (response.ok) await load();
   }
 
-  async function copyLink() {
-    await navigator.clipboard.writeText(inviteUrl);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
+  async function updateUser(id: string, changes: { active?: boolean; roleName?: string }) {
+    setError("");
+    const response = await fetch(`/api/v1/users/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(changes) });
+    if (!response.ok) { const payload = await response.json(); setError(payload.error?.message ?? "The user could not be updated."); return; }
+    await load();
   }
 
-  const users = [...syntheticUsers, ...persistedUsers.filter((user) => !syntheticUsers.some((synthetic) => synthetic.email === user.email))];
+  const users = persistedUsers;
   const pending = invitations.filter((invitation) => invitation.status === "PENDING");
 
   return (
@@ -116,7 +110,7 @@ export function UsersWorkspace() {
         eyebrow="Access administration"
         title="Users & permissions"
         description="Manage employees, facility scope, security levels, approval thresholds and service accounts."
-        action={<button className="button button-primary" onClick={() => { setOpen(true); setInviteUrl(""); setError(""); }}><Plus size={16} /> Invite user</button>}
+        action={<button className="button button-primary" onClick={() => { setOpen(true); setInvitationSent(false); setError(""); }}><Plus size={16} /> Invite user</button>}
       />
       <section className="summary-strip">
         {[["Active users", String(users.filter((user) => user.active !== false).length)], ["Pending invites", String(pending.length)], ["Security roles", "6"], ["MFA adoption", "Planned"]].map(([label, value]) => (
@@ -144,15 +138,15 @@ export function UsersWorkspace() {
       <section className="panel">
         <div className="toolbar">
           <label className="toolbar-search"><Search size={16} /><input placeholder="Search users, roles or facilities…" /></label>
-          <button className="button button-secondary"><UserCog size={16} /> Manage roles</button>
+          <span><UserCog size={16} /> Database-backed access</span>
         </div>
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>User</th><th>Role</th><th>Facility scope</th><th>Status</th></tr></thead>
+            <thead><tr><th>User</th><th>Role</th><th>Facility scope</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>{users.map((user) => (
               <tr key={user.email}>
                 <td className="primary-cell">{user.name}<span className="secondary-cell">{user.email}</span></td>
-                <td>{user.role}</td><td>{user.scope}</td><td><StatusPill tone="positive">Active</StatusPill></td>
+                <td><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => updateUser(user.id, { roleName: event.target.value })}>{roles.map(([role]) => <option key={role}>{role}</option>)}</select></td><td>{user.scope}</td><td><StatusPill tone={user.active === false ? "neutral" : "positive"}>{user.active === false ? "Inactive" : "Active"}</StatusPill></td><td><button className={user.active === false ? "text-button" : "text-button text-button-danger"} onClick={() => updateUser(user.id, { active: user.active === false })}>{user.active === false ? "Reactivate" : "Deactivate"}</button></td>
               </tr>
             ))}</tbody>
           </table>
@@ -171,13 +165,12 @@ export function UsersWorkspace() {
             <button className="modal-close" onClick={() => setOpen(false)} aria-label="Close invitation dialog"><X size={18} /></button>
             <p className="eyebrow">Secure invitation</p>
             <h2 id="invite-title">Invite a user</h2>
-            <p className="modal-copy">Create a single-use link that expires in seven days. Email delivery can be connected later.</p>
-            {inviteUrl ? (
+            <p className="modal-copy">Send a single-use invitation that expires in seven days.</p>
+            {invitationSent ? (
               <div className="invite-success">
                 <span><Check size={18} /> Invitation created</span>
-                <p>Copy this private link and send it to the intended person through an approved channel.</p>
-                <div><input readOnly value={inviteUrl} aria-label="Invitation link" /><button onClick={copyLink}>{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button></div>
-                <button className="button button-secondary" onClick={() => { setInviteUrl(""); setError(""); }}>Invite another user</button>
+                <p>The secure invitation was sent to the recipient by the configured email provider.</p>
+                <button className="button button-secondary" onClick={() => { setInvitationSent(false); setError(""); }}>Invite another user</button>
               </div>
             ) : (
               <form action={submitInvitation} className="invite-form">

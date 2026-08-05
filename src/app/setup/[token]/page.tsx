@@ -7,7 +7,7 @@ import { PortalAuthLayout } from "@/components/portal-auth-layout";
 export const metadata = { title: "Secure owner setup" };
 export const dynamic = "force-dynamic";
 
-export default async function SetupPage({ params }: PageProps<"/setup/[token]">) {
+export default async function SetupPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const hash = createHash("sha256").update(token).digest("hex");
   if (!process.env.BOOTSTRAP_TOKEN_HASH || hash !== process.env.BOOTSTRAP_TOKEN_HASH) notFound();
