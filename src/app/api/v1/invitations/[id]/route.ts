@@ -6,7 +6,7 @@ function isSameOrigin(request: Request) {
   return !origin || origin === new URL(request.url).origin;
 }
 
-export async function DELETE(request: Request, context: RouteContext<"/api/v1/invitations/[id]">) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
   const actor = await requireOwner();
   if (!isSameOrigin(request)) {
     return Response.json({ error: { code: "ORIGIN_REJECTED", message: "The request origin is not allowed." } }, { status: 403 });

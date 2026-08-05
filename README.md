@@ -30,7 +30,7 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Authentication and user administration use PostgreSQL through Prisma. Other operational modules still contain synthetic scaffold data and must not be treated as production records.
+Authentication, user administration, and the leasing workspaces use PostgreSQL through Prisma. Leasing requests enforce current organisation and facility role assignments on the server. Modules outside those completed workstreams may still contain labelled scaffold data and must not be treated as production records. See [`docs/LEASING_CORE.md`](docs/LEASING_CORE.md).
 
 ## Authentication and email
 
@@ -89,12 +89,11 @@ The scaffold follows a modular-monolith path:
 
 Recommended next implementation slices:
 
-1. Auth.js or an enterprise OIDC provider with MFA and scoped RBAC.
-2. Repository layer backed by Prisma and PostgreSQL.
-3. Transactional lead/reservation/move-in service.
-4. Immutable subledger and payment-provider adapter.
-5. Access-control command outbox and reconciliation worker.
-6. Test suite, seeded synthetic database and CI pipeline.
+1. MFA or enterprise OIDC for staff authentication.
+2. Immutable subledger and payment-provider adapter.
+3. Access-control command outbox and reconciliation worker.
+4. Database integration tests against disposable PostgreSQL.
+5. Replace remaining labelled scaffold modules with scoped repositories.
 
 ## Safety boundaries
 

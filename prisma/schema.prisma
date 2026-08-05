@@ -44,6 +44,13 @@ enum OccupancyStatus {
   CANCELLED
 }
 
+enum ReservationStatus {
+  ACTIVE
+  CONVERTED
+  CANCELLED
+  EXPIRED
+}
+
 enum LedgerEntryType {
   CHARGE
   PAYMENT
@@ -141,6 +148,7 @@ model Facility {
   roleAssignments RoleAssignment[]
   tasks          Task[]
   integrations   IntegrationConnection[]
+  auditEvents    AuditEvent[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
@@ -243,7 +251,7 @@ model Reservation {
   lead        Lead?     @relation(fields: [leadId], references: [id])
   unitId      String
   unit        Unit      @relation(fields: [unitId], references: [id])
-  status      String    @default("ACTIVE")
+  status      ReservationStatus @default(ACTIVE)
   quotedRate  Decimal   @db.Decimal(12, 2)
   holdExpiresAt DateTime?
   intendedMoveIn DateTime?
@@ -485,6 +493,8 @@ model AuditEvent {
   id             String       @id @default(cuid())
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId     String?
+  facility       Facility?     @relation(fields: [facilityId], references: [id], onDelete: SetNull)
   actorId        String?
   actor          User?        @relation(fields: [actorId], references: [id])
   action         String
@@ -496,6 +506,6 @@ model AuditEvent {
   ipHash         String?
   occurredAt     DateTime     @default(now())
 
-  @@index([organisationId, entityType, entityId, occurredAt])
+  @@index([organisationId, facilityId, entityType, entityId, occurredAt])
   @@index([actorId, occurredAt])
 }

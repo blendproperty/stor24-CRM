@@ -3,7 +3,7 @@ import { requirePermission } from "@/lib/auth-guards";
 import { updateUserSchema } from "@/lib/validators";
 import { sameOrigin } from "@/lib/request-security";
 
-export async function PATCH(request: Request, context: RouteContext<"/api/v1/users/[id]">) {
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const actor = await requirePermission("users.manage");
   if (!sameOrigin(request)) return Response.json({ error: { message: "Request rejected." } }, { status: 403 });
   const parsed = updateUserSchema.safeParse(await request.json());
