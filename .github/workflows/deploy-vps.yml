@@ -52,6 +52,14 @@ jobs:
              git fetch origin '$DEPLOY_REF' && \
              git checkout --detach FETCH_HEAD && \
              IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml build app && \
-             IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml up -d app && \
+             IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml up -d --no-deps app && \
+             container=\$(docker compose --env-file .env -f compose.prod.yml ps -q app) && \
+             for attempt in \$(seq 1 40); do \
+               state=\$(docker inspect --format '{{.State.Health.Status}}' \"\$container\"); \
+               test \"\$state\" = healthy && break; \
+               test \"\$state\" != unhealthy; \
+               sleep 2; \
+             done && \
+             test \"\$(docker inspect --format '{{.State.Health.Status}}' \"\$container\")\" = healthy && \
              curl --fail http://127.0.0.1:3014/api/health"
 
