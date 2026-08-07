@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { customerSchema, moveInSchema, noticeSchema, transferSchema } from "../src/lib/validators";
+import { accountPaymentSchema, customerSchema, moveInSchema, noticeSchema, transferSchema } from "../src/lib/validators";
 
 test("customer requires a person or company name", () => {
   assert.equal(customerSchema.safeParse({ type: "INDIVIDUAL", email: "test@example.test" }).success, false);
@@ -15,4 +15,10 @@ test("notice rejects a move-out before the notice date", () => {
 test("move-in rejects negative money and transfer requires identifiers", () => {
   assert.equal(moveInSchema.safeParse({ facilityId: "facility-1", customerId: "customer-1", unitId: "unit-1", startDate: "2026-08-04", initialCharge: -1 }).success, false);
   assert.equal(transferSchema.safeParse({ tenancyId: "", toUnitId: "unit-2", effectiveAt: "2026-08-04" }).success, false);
+});
+
+test("account payments require a positive amount and supported tender", () => {
+  assert.equal(accountPaymentSchema.safeParse({ accountId: "account-1", amount: 250, method: "EFT", receivedAt: "2026-08-07" }).success, true);
+  assert.equal(accountPaymentSchema.safeParse({ accountId: "account-1", amount: 0, method: "EFT", receivedAt: "2026-08-07" }).success, false);
+  assert.equal(accountPaymentSchema.safeParse({ accountId: "account-1", amount: 250, method: "CHEQUE", receivedAt: "2026-08-07" }).success, false);
 });

@@ -27,6 +27,7 @@ export const moveInSchema = z.object({ reservationId: id.optional(), facilityId:
 export const transferSchema = z.object({ tenancyId: id, toUnitId: id, effectiveAt: z.coerce.date(), monthlyRate: money.optional() });
 export const noticeSchema = z.object({ tenancyId: id, noticeDate: z.coerce.date(), plannedMoveOut: z.coerce.date() }).refine((v) => v.plannedMoveOut >= v.noticeDate, "Move-out cannot precede notice.");
 export const moveOutSchema = z.object({ tenancyId: id, movedOutAt: z.coerce.date(), finalCharge: money.default(0), notes: optionalText });
+export const accountPaymentSchema = z.object({ accountId: id, amount: z.coerce.number().positive().max(10_000_000), method: z.enum(["CASH", "EFT", "CARD", "BANK_DEBIT"]), reference: z.string().trim().max(120).optional(), receivedAt: z.coerce.date() });
 
 export const createInvitationSchema = z.object({
   name: z.string().trim().min(2).max(120),

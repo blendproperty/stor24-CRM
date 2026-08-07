@@ -59,9 +59,9 @@ export function OperationsWorkspace() {
     </section>
     <section className="panel panel-spacious"><div className="panel-heading"><div><p className="eyebrow">Accounts</p><h2>Customer account workflows</h2><p className="panel-subtitle">Start the primary rental and billing workflows from one place.</p></div></div><div className="operations-account-grid">
       <Link href="/operations/move-in"><strong>Move in</strong><span>Select a vacant unit and create the tenancy account.</span></Link>
-      <Link href="/billing"><strong>Payments</strong><span>Post and review customer payments.</span></Link>
-      <Link href="/tenants"><strong>Transfer</strong><span>Move an active tenant to another available unit.</span></Link>
-      <Link href="/tenants"><strong>Move out</strong><span>Close an occupancy and release the unit.</span></Link>
+      <Link href="/operations/accounts"><strong>Payments</strong><span>Post and review customer payments.</span></Link>
+      <Link href="/operations/accounts"><strong>Transfer</strong><span>Move an active tenant to another available unit.</span></Link>
+      <Link href="/operations/accounts"><strong>Move out</strong><span>Close an occupancy and release the unit.</span></Link>
     </div></section>
     <section className="dashboard-grid">
       <article className="panel panel-spacious"><div className="panel-heading"><div><p className="eyebrow">Work queues</p><h2>Assigned operational tasks</h2></div><ClipboardList size={21}/></div>

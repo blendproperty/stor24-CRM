@@ -67,7 +67,7 @@ export async function moveIn(scope: RequestScope, input: { reservationId?: strin
     const account = await tx.account.create({ data: { customerId: customer.id, accountNumber: `ST24-${Date.now().toString(36).toUpperCase()}` } });
     const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "ACTIVE", startDate: input.startDate, occupancies: { create: { unitId: unit.id, status: "ACTIVE", startDate: input.startDate, monthlyRate: input.monthlyRate ?? unit.monthlyRate, accessState: input.accessState } } } });
     await tx.unit.update({ where: { id: unit.id }, data: { status: "OCCUPIED" } });
-    if (input.initialCharge > 0) await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge", effectiveAt: input.startDate, createdById: scope.userId } });
+    if (input.initialCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge", effectiveAt: input.startDate, createdById: scope.userId } }); await tx.account.update({ where: { id: account.id }, data: { balance: { increment: input.initialCharge } } }); }
     if (input.reservationId) await tx.reservation.update({ where: { id: input.reservationId }, data: { status: "CONVERTED", convertedTenancyId: tenancy.id } });
     await audit(tx, scope, "tenancy.moved_in", "Tenancy", tenancy.id, input.facilityId); return tenancy;
   });
@@ -98,7 +98,7 @@ export async function moveOut(scope: RequestScope, input: { tenancyId: string; m
     await tx.occupancy.updateMany({ where: { tenancyId: tenancy.id, status: { in: ["ACTIVE", "NOTICE_GIVEN"] } }, data: { status: "MOVED_OUT", endDate: input.movedOutAt, accessState: "REVOKED" } });
     await tx.unit.updateMany({ where: { id: { in: tenancy.occupancies.map((o) => o.unitId) } }, data: { status: "AVAILABLE" } });
     const entity = await tx.tenancy.update({ where: { id: tenancy.id }, data: { status: "CLOSED", endDate: input.movedOutAt } });
-    if (input.finalCharge > 0) await tx.ledgerEntry.create({ data: { accountId: tenancy.accountId, type: "CHARGE", amount: input.finalCharge, description: input.notes || "Final move-out charge", effectiveAt: input.movedOutAt, createdById: scope.userId } });
+    if (input.finalCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: tenancy.accountId, type: "CHARGE", amount: input.finalCharge, description: input.notes || "Final move-out charge", effectiveAt: input.movedOutAt, createdById: scope.userId } }); await tx.account.update({ where: { id: tenancy.accountId }, data: { balance: { increment: input.finalCharge } } }); }
     await audit(tx, scope, "tenancy.moved_out", "Tenancy", entity.id, tenancy.facilityId); return entity;
   });
 }

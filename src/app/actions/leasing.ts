@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createCustomer, createFacility, createLead, createReservation, createUnit, createUnitType, giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
 import { requireScope } from "@/lib/scope";
 import { customerSchema, facilitySchema, leadSchema, moveInSchema, moveOutSchema, noticeSchema, reservationSchema, transferSchema, unitSchema, unitTypeSchema } from "@/lib/validators";
+import { requirePermission } from "@/lib/auth-guards";
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim() || undefined;
 const number = (data: FormData, key: string) => text(data, key) ? Number(text(data, key)) : undefined;
@@ -35,9 +36,10 @@ export async function reserveAction(data: FormData) {
   await createReservation(await requireScope(), parsed); revalidatePath("/leads");
 }
 export async function moveInAction(data: FormData) {
+  await requirePermission("move_in.create");
   const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING" });
-  await moveIn(await requireScope(), parsed); revalidatePath("/tenants"); redirect("/tenants");
+  await moveIn(await requireScope(), parsed); revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
 }
-export async function transferAction(data: FormData) { const parsed = transferSchema.parse({ tenancyId: text(data, "tenancyId"), toUnitId: text(data, "toUnitId"), effectiveAt: text(data, "effectiveAt"), monthlyRate: number(data, "monthlyRate") }); await transfer(await requireScope(), parsed); revalidatePath("/tenants"); }
-export async function noticeAction(data: FormData) { const parsed = noticeSchema.parse({ tenancyId: text(data, "tenancyId"), noticeDate: text(data, "noticeDate"), plannedMoveOut: text(data, "plannedMoveOut") }); await giveNotice(await requireScope(), parsed); revalidatePath("/tenants"); }
-export async function moveOutAction(data: FormData) { const parsed = moveOutSchema.parse({ tenancyId: text(data, "tenancyId"), movedOutAt: text(data, "movedOutAt"), finalCharge: number(data, "finalCharge") ?? 0, notes: text(data, "notes") }); await moveOut(await requireScope(), parsed); revalidatePath("/tenants"); }
+export async function transferAction(data: FormData) { await requirePermission("operations.manage"); const parsed = transferSchema.parse({ tenancyId: text(data, "tenancyId"), toUnitId: text(data, "toUnitId"), effectiveAt: text(data, "effectiveAt"), monthlyRate: number(data, "monthlyRate") }); await transfer(await requireScope(), parsed); revalidatePath("/tenants"); }
+export async function noticeAction(data: FormData) { await requirePermission("collections.manage"); const parsed = noticeSchema.parse({ tenancyId: text(data, "tenancyId"), noticeDate: text(data, "noticeDate"), plannedMoveOut: text(data, "plannedMoveOut") }); await giveNotice(await requireScope(), parsed); revalidatePath("/tenants"); }
+export async function moveOutAction(data: FormData) { await requirePermission("operations.manage"); const parsed = moveOutSchema.parse({ tenancyId: text(data, "tenancyId"), movedOutAt: text(data, "movedOutAt"), finalCharge: number(data, "finalCharge") ?? 0, notes: text(data, "notes") }); await moveOut(await requireScope(), parsed); revalidatePath("/tenants"); }
