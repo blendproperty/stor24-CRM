@@ -66,6 +66,8 @@ export function CompanyWorkspace() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showAddStore, setShowAddStore] = useState(false);
+  const [storeBusy, setStoreBusy] = useState(false);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/configuration", { cache: "no-store" });
@@ -99,8 +101,17 @@ export function CompanyWorkspace() {
     setNotice("Setup saved for this facility."); await load();
   }
 
+  async function addStore(formData: FormData) {
+    setStoreBusy(true); setError(""); setNotice("");
+    const response = await fetch("/api/v1/leasing/facilities", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: String(formData.get("name") ?? ""), code: String(formData.get("code") ?? ""), timezone: "Africa/Johannesburg", active: true }) });
+    const payload = await response.json(); setStoreBusy(false);
+    if (!response.ok) { setError(payload.error?.message ?? payload.error?.fields?.code?.[0] ?? "Store could not be added."); return; }
+    setShowAddStore(false); setNotice(`${payload.data.name} added.`); await load(); setFacilityId(payload.data.id);
+  }
+
   return <div className="page-stack">
-    <PageHeader eyebrow="Administration" title="Company setup" description="Facility information and operational defaults, organised to match the SiteLink Site Setup workflow." action={<label className="facility-picker"><span>Facility</span><select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setNotice(""); }}>{data?.facilities.map((facility) => <option value={facility.id} key={facility.id}>{facility.name} ({facility.code})</option>)}</select></label>}/>
+    <PageHeader eyebrow="Administration" title="Company setup" description="Facility information and operational defaults, organised to match the SiteLink Site Setup workflow." action={<div className="facility-actions"><label className="facility-picker"><span>Store</span><select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setNotice(""); }}>{data?.facilities.map((facility) => <option value={facility.id} key={facility.id}>{facility.name}</option>)}</select></label><button type="button" className="button button-primary" onClick={() => setShowAddStore((current) => !current)}><Plus size={16}/>{showAddStore ? "Cancel" : "Add store"}</button></div>}/>
+    {showAddStore ? <form action={addStore} className="panel add-store-form"><div><p className="eyebrow">Portfolio</p><h2>Add another store</h2><p className="panel-subtitle">Create a separate store workspace with its own contact details, hours, website attributes and defaults.</p></div><Field name="name" label="Store name" placeholder="e.g. Store 7 – Location TBC" required/><Field name="code" label="Store code" placeholder="e.g. STORE-7" required maxLength={40}/><button className="button button-primary" disabled={storeBusy}>{storeBusy ? "Adding…" : "Add store"}</button></form> : null}
     {error ? <p className="form-error">{error}</p> : null}{notice ? <p className="form-success"><CheckCircle2 size={16}/>{notice}</p> : null}
     <section className="summary-strip">{[["Facilities", data?.facilities.length ?? 0], ["Employees", data?.users.length ?? 0], ["Security levels", data?.roles.length ?? 0], ["Setup sections", `${configured.size}/3`]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
     <section className="setup-layout company-setup-layout">
