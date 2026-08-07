@@ -117,9 +117,9 @@ export const dailyCloseSchema = z.object({
 
 export const configurationSchema = z.object({
   facilityId: z.string().cuid().nullable().optional(),
-  domain: z.enum(["FACILITY", "PROGRAM_DEFAULTS", "TENANT_DEFAULTS", "BANKING_ACCOUNTING", "MARKETING", "PRICE_OPTIMIZER", "FACILITY_MAP", "PHONE", "MARKETPLACE"]),
+  domain: z.enum(["FACILITY", "STORE_INFORMATION", "WEBSITE_ATTRIBUTES", "PROGRAM_DEFAULTS", "TENANT_DEFAULTS", "BANKING_ACCOUNTING", "MARKETING", "PRICE_OPTIMIZER", "FACILITY_MAP", "PHONE", "MARKETPLACE"]),
   name: z.string().trim().min(1).max(120), status: z.enum(["DRAFT", "READY", "DISABLED"]).default("DRAFT"),
-  config: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])),
+  config: z.record(z.string(), z.json()),
 });
 
 export const integrationSchema = z.object({

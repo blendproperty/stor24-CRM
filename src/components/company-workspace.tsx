@@ -1,60 +1,152 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Building2, Cable, CheckCircle2, Settings2, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Building2, CheckCircle2, Clock3, Globe2, MapPin, Plus, Settings2, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
-type Profile = { id: string; domain: string; name: string; status: string; config: Record<string, unknown> };
-type Integration = { id: string; category: string; provider: string; status: string; config: Record<string, unknown>; lastHealthAt: string | null };
-type SetupData = { profiles: Profile[]; integrations: Integration[]; charges: unknown[]; discounts: unknown[]; facilities: unknown[]; roles: unknown[]; users: unknown[] };
-const domains = [
-  ["FACILITY", "Company & facilities", "Addresses, operating hours, locale, tax and facility contacts."],
-  ["PROGRAM_DEFAULTS", "Program defaults", "Proration, invoicing, tenders, refunds, close, late fees and reservations."],
-  ["TENANT_DEFAULTS", "Tenant defaults", "Required identity, address, notice, communication and account fields."],
-  ["BANKING_ACCOUNTING", "Banking & accounting", "Non-secret bank references, chart mappings and export controls."],
-  ["MARKETING", "Marketing settings", "Lead sources, campaigns, customer types, storage and loss reasons."],
-  ["PRICE_OPTIMIZER", "Price optimizer", "Draft rate rules, guardrails, approval thresholds and effective dates."],
-  ["FACILITY_MAP", "Facility map", "Zones, layout metadata and unit display configuration."],
-  ["PHONE", "Phone integration", "Caller matching and activity capture configuration shell."],
-  ["MARKETPLACE", "Marketplace", "Vendor-neutral connector catalogue and mappings."],
+type Profile = { id: string; facilityId: string | null; domain: string; name: string; status: string; config: Record<string, unknown> };
+type Facility = { id: string; name: string; code: string; timezone: string; active: boolean };
+type SetupData = { profiles: Profile[]; integrations: { status: string }[]; facilities: Facility[]; roles: unknown[]; users: unknown[] };
+type AttributeRow = { name: string; description: string; used: boolean };
+type SetupSection = "STORE_INFORMATION" | "WEBSITE_ATTRIBUTES" | "PROGRAM_DEFAULTS";
+
+const setupDomains = new Set<SetupSection>(["STORE_INFORMATION", "WEBSITE_ATTRIBUTES", "PROGRAM_DEFAULTS"]);
+const weekDays = ["Weekday", "Saturday", "Sunday"] as const;
+const programGroups = [
+  ["General", "Currency, locale, timezone and regional behaviour"],
+  ["Proration", "Move-in and move-out proration rules"],
+  ["Move In", "Reservation, deposit and lease defaults"],
+  ["Move Out", "Notice periods, refunds and closing rules"],
+  ["Invoice", "Invoice dates, numbering and delivery defaults"],
+  ["Payment Types", "Accepted tenders and payment allocation"],
+  ["Payments", "Receipting and reversal controls"],
+  ["Credits", "Credit permissions and approval thresholds"],
+  ["Refunds", "Refund methods and authorisation"],
+  ["Daily Close", "Cash-up and business-day controls"],
+  ["Late Fees", "Grace periods and recurring fee rules"],
+  ["Printing & Reports", "Document and report output defaults"],
+  ["SMS", "Text notification defaults"],
+  ["International", "Country, tax and address formatting"],
+  ["Inventory Transfers", "Inter-facility stock transfer controls"],
+  ["User Responses 1", "Configurable staff response list"],
+  ["User Responses 2", "Additional configurable responses"],
+  ["Activity Logging", "Audited operational activity settings"],
+  ["Reservations", "Hold periods and expiry behaviour"],
+  ["IP Restrictions", "Approved network access rules"],
+  ["Batch", "Bulk processing defaults"],
 ] as const;
+
+const blankStore = {
+  dbaName: "", legalName: "", address1: "", address2: "", city: "", province: "", postalCode: "", country: "South Africa",
+  phone: "", fax: "", primaryDivision: "", managementArea: "", taxNumber: "", contactName: "", email: "",
+  websiteUrl: "", onlinePayments: false, directions: "", latitude: "", longitude: "",
+  weekdayClosed: false, weekdayStart: "08:00", weekdayEnd: "17:00", saturdayClosed: false, saturdayStart: "08:00", saturdayEnd: "13:00", sundayClosed: true, sundayStart: "", sundayEnd: "",
+};
+
+function textValue(value: unknown) { return typeof value === "string" ? value : ""; }
+function booleanValue(value: unknown) { return value === true; }
 
 export function CompanyWorkspace() {
   const [data, setData] = useState<SetupData | null>(null);
-  const [selected, setSelected] = useState<(typeof domains)[number]>(domains[0]);
+  const [facilityId, setFacilityId] = useState("");
+  const [section, setSection] = useState<SetupSection>("STORE_INFORMATION");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const load = useCallback(async () => { const response = await fetch("/api/v1/configuration", { cache: "no-store" }); const payload = await response.json(); if (!response.ok) setError(payload.error?.message ?? "Setup data could not be loaded."); else { setData(payload.data); setError(""); } }, []);
+
+  const load = useCallback(async () => {
+    const response = await fetch("/api/v1/configuration", { cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok) setError(payload.error?.message ?? "Setup data could not be loaded.");
+    else { setData(payload.data); setFacilityId((current) => current || payload.data.facilities[0]?.id || ""); setError(""); }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/v1/configuration", { cache: "no-store" }).then(async (response) => ({ response, payload: await response.json() })).then(({ response, payload }) => {
-      if (cancelled) return;
-      if (!response.ok) setError(payload.error?.message ?? "Setup data could not be loaded.");
-      else setData(payload.data);
-    });
+    fetch("/api/v1/configuration", { cache: "no-store" })
+      .then(async (response) => ({ response, payload: await response.json() }))
+      .then(({ response, payload }) => {
+        if (cancelled) return;
+        if (!response.ok) setError(payload.error?.message ?? "Setup data could not be loaded.");
+        else { setData(payload.data); setFacilityId(payload.data.facilities[0]?.id || ""); }
+      });
     return () => { cancelled = true; };
   }, []);
 
-  async function saveProfile(formData: FormData) {
-    setBusy(true);
-    const config = { summary: String(formData.get("summary") ?? ""), enabled: formData.get("enabled") === "on" };
-    const response = await fetch("/api/v1/configuration", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "profile", payload: { domain: selected[0], name: "Default", status: "DRAFT", config } }) });
+  const profile = useCallback((domain: string) => data?.profiles.find((item) => item.domain === domain && item.facilityId === facilityId), [data, facilityId]);
+  const selectedFacility = data?.facilities.find((facility) => facility.id === facilityId);
+  const configured = useMemo(() => new Set(data?.profiles.filter((item) => item.facilityId === facilityId && setupDomains.has(item.domain as SetupSection)).map((item) => item.domain)), [data, facilityId]);
+
+  async function save(domain: string, config: Record<string, unknown>) {
+    if (!facilityId) { setError("Select a facility before saving setup details."); return; }
+    setBusy(true); setNotice(""); setError("");
+    const response = await fetch("/api/v1/configuration", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "profile", payload: { facilityId, domain, name: "Default", status: "READY", config } }) });
     const payload = await response.json(); setBusy(false);
     if (!response.ok) { setError(payload.error?.message ?? "Configuration could not be saved."); return; }
-    await load();
+    setNotice("Setup saved for this facility."); await load();
   }
-  const configured = new Set(data?.profiles.map((profile) => profile.domain));
+
   return <div className="page-stack">
-    <PageHeader eyebrow="Administration" title="Company & setup" description="Governed Stor24 defaults, security, finance settings and explicit connector configuration." action={<button className="button button-primary" onClick={() => setSelected(domains[0])}><Building2 size={16}/> Facility setup</button>}/>
-    {error ? <p className="form-error">{error}</p> : null}
-    <section className="summary-strip">{[["Facilities", data?.facilities.length ?? 0], ["Employees", data?.users.length ?? 0], ["Security levels", data?.roles.length ?? 0], ["Connected services", data?.integrations.filter((item) => item.status === "CONNECTED").length ?? 0]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
-    <section className="setup-layout">
-      <div className="panel setup-nav">{domains.map((domain) => <button className={selected[0] === domain[0] ? "setup-nav-active" : ""} key={domain[0]} onClick={() => setSelected(domain)}><span><Settings2 size={17}/><strong>{domain[1]}</strong></span><StatusPill tone={configured.has(domain[0]) ? "positive" : "warning"}>{configured.has(domain[0]) ? "Draft saved" : "Configure"}</StatusPill></button>)}</div>
-      <article className="panel panel-spacious"><div className="panel-heading"><div><p className="eyebrow">{selected[0].replaceAll("_", " ")}</p><h2>{selected[1]}</h2><p className="panel-subtitle">{selected[2]}</p></div><ShieldCheck className="positive-icon"/></div>
-        <form action={saveProfile} className="invite-form"><label>Configuration summary<textarea name="summary" rows={7} defaultValue={String(data?.profiles.find((profile) => profile.domain === selected[0])?.config.summary ?? "")}/></label><label className="check-label"><input type="checkbox" name="enabled" defaultChecked={Boolean(data?.profiles.find((profile) => profile.domain === selected[0])?.config.enabled)}/><span>Enable this draft default for operational review</span></label><p className="safe-config-note"><CheckCircle2 size={16}/>Only non-secret operational values belong here. Credentials and payment data must be stored in an approved secret vault/provider.</p><button className="button button-primary" disabled={busy}>{busy ? "Saving…" : "Save draft configuration"}</button></form>
+    <PageHeader eyebrow="Administration" title="Company setup" description="Facility information and operational defaults, organised to match the SiteLink Site Setup workflow." action={<label className="facility-picker"><span>Facility</span><select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setNotice(""); }}>{data?.facilities.map((facility) => <option value={facility.id} key={facility.id}>{facility.name} ({facility.code})</option>)}</select></label>}/>
+    {error ? <p className="form-error">{error}</p> : null}{notice ? <p className="form-success"><CheckCircle2 size={16}/>{notice}</p> : null}
+    <section className="summary-strip">{[["Facilities", data?.facilities.length ?? 0], ["Employees", data?.users.length ?? 0], ["Security levels", data?.roles.length ?? 0], ["Setup sections", `${configured.size}/3`]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
+    <section className="setup-layout company-setup-layout">
+      <nav className="panel setup-nav" aria-label="Company setup sections">
+        <div className="setup-nav-heading"><Building2 size={18}/><div><strong>Site setup</strong><small>{selectedFacility?.name ?? "Select a facility"}</small></div></div>
+        <SetupNavButton active={section === "STORE_INFORMATION"} configured={configured.has("STORE_INFORMATION")} icon={<MapPin size={17}/>} label="Store information" onClick={() => setSection("STORE_INFORMATION")}/>
+        <SetupNavButton active={section === "WEBSITE_ATTRIBUTES"} configured={configured.has("WEBSITE_ATTRIBUTES")} icon={<Globe2 size={17}/>} label="Attributes on website" onClick={() => setSection("WEBSITE_ATTRIBUTES")}/>
+        <SetupNavButton active={section === "PROGRAM_DEFAULTS"} configured={configured.has("PROGRAM_DEFAULTS")} icon={<SlidersHorizontal size={17}/>} label="Program defaults" onClick={() => setSection("PROGRAM_DEFAULTS")}/>
+      </nav>
+      <article className="panel panel-spacious company-setup-panel">
+        {section === "STORE_INFORMATION" ? <StoreInformation key={`${facilityId}-${profile("STORE_INFORMATION")?.id ?? "new"}`} initial={profile("STORE_INFORMATION")?.config} busy={busy} onSave={(config) => save("STORE_INFORMATION", config)}/> : null}
+        {section === "WEBSITE_ATTRIBUTES" ? <WebsiteAttributes key={`${facilityId}-${profile("WEBSITE_ATTRIBUTES")?.id ?? "new"}`} initial={profile("WEBSITE_ATTRIBUTES")?.config} busy={busy} onSave={(config) => save("WEBSITE_ATTRIBUTES", config)}/> : null}
+        {section === "PROGRAM_DEFAULTS" ? <ProgramDefaults key={`${facilityId}-${profile("PROGRAM_DEFAULTS")?.id ?? "new"}`} initial={profile("PROGRAM_DEFAULTS")?.config} busy={busy} onSave={(config) => save("PROGRAM_DEFAULTS", config)}/> : null}
       </article>
     </section>
-    <section className="panel"><div className="hub-heading"><div><h2>Marketplace & integration connections</h2><p>Configuration shells only. No service is presented as live without a verified health result.</p></div><Cable size={20}/></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Category</th><th>Provider</th><th>Connection status</th><th>Last verified</th></tr></thead><tbody>{data?.integrations.length ? data.integrations.map((item) => <tr key={item.id}><td>{item.category}</td><td className="primary-cell">{item.provider}</td><td><StatusPill tone={item.status === "CONNECTED" ? "positive" : "warning"}>{item.status}</StatusPill></td><td>{item.lastHealthAt ? new Date(item.lastHealthAt).toLocaleString("en-ZA") : "Never"}</td></tr>) : <tr><td colSpan={4} className="empty-cell">No connectors configured. All external services are disconnected.</td></tr>}</tbody></table></div></section>
   </div>;
 }
+
+function SetupNavButton({ active, configured, icon, label, onClick }: { active: boolean; configured: boolean; icon: React.ReactNode; label: string; onClick: () => void }) {
+  return <button type="button" className={active ? "setup-nav-active" : ""} onClick={onClick}><span>{icon}<strong>{label}</strong></span><StatusPill tone={configured ? "positive" : "warning"}>{configured ? "Saved" : "Configure"}</StatusPill></button>;
+}
+
+function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
+  const values = { ...blankStore, ...initial };
+  function submit(formData: FormData) {
+    const config: Record<string, unknown> = {};
+    Object.keys(blankStore).forEach((key) => { config[key] = typeof blankStore[key as keyof typeof blankStore] === "boolean" ? formData.get(key) === "on" : String(formData.get(key) ?? ""); });
+    onSave(config);
+  }
+  return <form action={submit} className="company-form">
+    <div className="panel-heading"><div><p className="eyebrow">General setup</p><h2>Store information</h2><p className="panel-subtitle">Contact information, business hours, location and website details for the selected facility.</p></div><Building2 className="positive-icon"/></div>
+    <div className="company-form-grid">
+      <fieldset><legend>Contact information</legend><div className="field-grid two-column">
+        <Field name="dbaName" label="Store name (DBA)" value={textValue(values.dbaName)} required/><Field name="legalName" label="Store legal name" value={textValue(values.legalName)}/><Field name="address1" label="Store address" value={textValue(values.address1)} required/><Field name="address2" label="Address line 2" value={textValue(values.address2)}/><Field name="city" label="City" value={textValue(values.city)} required/><Field name="province" label="Province / state" value={textValue(values.province)} required/><Field name="postalCode" label="Postal code" value={textValue(values.postalCode)} required/><Field name="country" label="Country" value={textValue(values.country)} required/><Field name="phone" label="Phone" value={textValue(values.phone)}/><Field name="fax" label="Fax" value={textValue(values.fax)}/><Field name="primaryDivision" label="Primary division" value={textValue(values.primaryDivision)}/><Field name="managementArea" label="Management area" value={textValue(values.managementArea)} maxLength={10}/><Field name="taxNumber" label="Tax number" value={textValue(values.taxNumber)}/><Field name="contactName" label="Store contact" value={textValue(values.contactName)}/><Field name="email" label="Email address" value={textValue(values.email)} type="email"/></div></fieldset>
+      <fieldset><legend><Clock3 size={16}/>Business hours</legend><div className="hours-grid">{weekDays.map((day) => { const key = day.toLowerCase(); return <div className="hours-row" key={day}><label className="check-label"><input type="checkbox" name={`${key}Closed`} defaultChecked={booleanValue(values[`${key}Closed` as keyof typeof values])}/><span>Closed {day}</span></label><Field name={`${key}Start`} label="Start" value={textValue(values[`${key}Start` as keyof typeof values])} type="time"/><Field name={`${key}End`} label="End" value={textValue(values[`${key}End` as keyof typeof values])} type="time"/></div>; })}</div><p className="field-help">Business day runs from 00:00 to 23:59.</p></fieldset>
+      <fieldset><legend><MapPin size={16}/>Store location</legend><div className="field-grid two-column"><Field name="latitude" label="Latitude" value={textValue(values.latitude)} inputMode="decimal"/><Field name="longitude" label="Longitude" value={textValue(values.longitude)} inputMode="decimal"/></div></fieldset>
+      <fieldset><legend><Globe2 size={16}/>Website information</legend><div className="field-grid"><Field name="websiteUrl" label="Website URL" value={textValue(values.websiteUrl)} type="url"/><label className="check-label"><input type="checkbox" name="onlinePayments" defaultChecked={booleanValue(values.onlinePayments)}/><span>Online payments supported</span></label><label>Driving directions or location description<textarea name="directions" rows={5} defaultValue={textValue(values.directions)}/></label></div></fieldset>
+    </div><FormFooter busy={busy}/>
+  </form>;
+}
+
+function WebsiteAttributes({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
+  const readRows = (key: string) => Array.isArray(initial?.[key]) ? initial?.[key] as AttributeRow[] : [];
+  const [unitAttributes, setUnitAttributes] = useState<AttributeRow[]>(readRows("unitAttributes"));
+  const [storeAttributes, setStoreAttributes] = useState<AttributeRow[]>(readRows("storeAttributes"));
+  return <div className="company-form"><div className="panel-heading"><div><p className="eyebrow">Program defaults</p><h2>Attributes on website</h2><p className="panel-subtitle">Choose the unit and store attributes exposed to your website and approved integrations.</p></div><Globe2 className="positive-icon"/></div><p className="safe-config-note"><CheckCircle2 size={16}/>Only attributes marked “Used” are made available to website consumers.</p><div className="attribute-columns"><AttributeEditor title="Unit attributes" rows={unitAttributes} onChange={setUnitAttributes}/><AttributeEditor title="Store attributes" rows={storeAttributes} onChange={setStoreAttributes}/></div><FormFooter busy={busy} onClick={() => onSave({ unitAttributes, storeAttributes })}/></div>;
+}
+
+function AttributeEditor({ title, rows, onChange }: { title: string; rows: AttributeRow[]; onChange: (rows: AttributeRow[]) => void }) {
+  return <section className="attribute-editor"><div className="attribute-heading"><h3>{title}</h3><button type="button" className="button button-secondary button-small" onClick={() => onChange([...rows, { name: "", description: "", used: true }])}><Plus size={14}/>Add attribute</button></div>{rows.length ? <div className="attribute-list">{rows.map((row, index) => <div className="attribute-row" key={index}><input aria-label={`${title} name ${index + 1}`} placeholder="Attribute name" value={row.name} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))}/><input aria-label={`${title} description ${index + 1}`} placeholder="Description" value={row.description} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))}/><label className="check-label compact"><input type="checkbox" checked={row.used} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, used: event.target.checked } : item))}/><span>Used</span></label><button type="button" className="icon-button" aria-label={`Remove ${row.name || "attribute"}`} onClick={() => onChange(rows.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15}/></button></div>)}</div> : <p className="empty-cell">No attributes added yet.</p>}</section>;
+}
+
+function ProgramDefaults({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
+  const [active, setActive] = useState(textValue(initial?.activeGroup) || "General");
+  const [settings, setSettings] = useState<Record<string, boolean>>((initial?.settings as Record<string, boolean>) ?? {});
+  const options = ["Enabled for this facility", "Require manager approval", "Record changes in activity log", "Apply to new records by default"];
+  return <div className="company-form"><div className="panel-heading"><div><p className="eyebrow">General setup</p><h2>Program defaults</h2><p className="panel-subtitle">The SiteLink default categories are retained so operational rules can be configured without losing familiar navigation.</p></div><Settings2 className="positive-icon"/></div><div className="program-tabs" role="tablist">{programGroups.map(([name]) => <button type="button" role="tab" aria-selected={active === name} className={active === name ? "active" : ""} onClick={() => setActive(name)} key={name}>{name}</button>)}</div><section className="program-default-panel"><h3>{active}</h3><p>{programGroups.find(([name]) => name === active)?.[1]}</p><div className="option-list">{options.map((option) => { const key = `${active}:${option}`; return <label className="check-label" key={option}><input type="checkbox" checked={Boolean(settings[key])} onChange={(event) => setSettings({ ...settings, [key]: event.target.checked })}/><span>{option}</span></label>; })}</div></section><FormFooter busy={busy} onClick={() => onSave({ activeGroup: active, settings })}/></div>;
+}
+
+function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) { return <label>{label}<input {...props}/></label>; }
+function FormFooter({ busy, onClick }: { busy: boolean; onClick?: () => void }) { return <div className="form-footer"><button type={onClick ? "button" : "submit"} className="button button-primary" disabled={busy} onClick={onClick}>{busy ? "Saving…" : "Save setup"}</button></div>; }
