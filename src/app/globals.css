@@ -798,8 +798,28 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .program-default-panel h3 { margin: 0 0 5px; }
 .program-default-panel > p { margin: 0 0 16px; color: var(--muted); font-size: 12px; }
 .option-list { display: grid; gap: 12px; }
+.program-defaults-workspace .program-default-panel { padding: 0; border: 0; background: transparent; }
+.defaults-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.defaults-stack { display: grid; gap: 14px; }
+.defaults-group { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 11px; background: white; }
+.defaults-group-wide { grid-column: 1 / -1; }
+.defaults-group > h3 { margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--paper); font-size: 13px; }
+.defaults-fields { display: grid; gap: 11px; padding: 13px; }
+.defaults-fields > label:not(.check-label) { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.defaults-fields input:not([type="checkbox"]):not([type="radio"]), .defaults-fields select, .defaults-fields textarea, .payment-type-row input, .sms-row textarea { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font: inherit; }
+.radio-field { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.radio-field legend { margin-bottom: 7px; padding: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
+.radio-field label { display: flex; align-items: flex-start; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
+.radio-field input { margin-top: 2px; }
+.range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.editor-list { display: grid; gap: 8px; }
+.payment-type-row { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(170px, 1.4fr) repeat(3, auto) 34px; gap: 8px; align-items: center; }
+.sms-row { display: grid; grid-template-columns: 1fr 34px; gap: 8px; align-items: center; }
+.sms-row textarea { resize: vertical; }
+.editor-add { justify-self: start; }
 @media (max-width: 1120px) { .company-form-grid, .attribute-columns { grid-template-columns: 1fr; } .add-store-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 640px) { .field-grid.two-column, .hours-row, .add-store-form { grid-template-columns: 1fr; } .facility-actions { width: 100%; align-items: stretch; flex-direction: column; } .facility-picker { min-width: 0; width: 100%; } .attribute-row { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .defaults-grid { grid-template-columns: 1fr; } .defaults-group-wide { grid-column: auto; } .payment-type-row { grid-template-columns: 1fr 1fr; padding-bottom: 10px; border-bottom: 1px solid var(--line); } }
+@media (max-width: 640px) { .field-grid.two-column, .hours-row, .add-store-form, .range-grid, .payment-type-row { grid-template-columns: 1fr; } .facility-actions { width: 100%; align-items: stretch; flex-direction: column; } .facility-picker { min-width: 0; width: 100%; } .attribute-row { grid-template-columns: 1fr; } }
 .check-label { display: flex !important; align-items: flex-start; gap: 10px; }
 .check-label input { width: auto !important; min-height: auto !important; margin-top: 3px; }
 .safe-config-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px; border-radius: 10px; background: var(--amber-soft); color: var(--amber); font-size: 12px; line-height: 1.5; }

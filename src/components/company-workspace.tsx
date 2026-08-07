@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, Clock3, Globe2, MapPin, Plus, Settings2, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Building2, CheckCircle2, Clock3, Globe2, MapPin, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { ProgramDefaults } from "@/components/program-defaults";
 import { StatusPill } from "@/components/status-pill";
 
 type Profile = { id: string; facilityId: string | null; domain: string; name: string; status: string; config: Record<string, unknown> };
@@ -25,30 +26,6 @@ const citiesByProvince: Record<string, string[]> = {
   "Western Cape": ["Cape Town", "George", "Knysna", "Mossel Bay", "Paarl", "Stellenbosch", "Worcester"],
 };
 const provinces = Object.keys(citiesByProvince);
-const programGroups = [
-  ["General", "Currency, locale, timezone and regional behaviour"],
-  ["Proration", "Move-in and move-out proration rules"],
-  ["Move In", "Reservation, deposit and lease defaults"],
-  ["Move Out", "Notice periods, refunds and closing rules"],
-  ["Invoice", "Invoice dates, numbering and delivery defaults"],
-  ["Payment Types", "Accepted tenders and payment allocation"],
-  ["Payments", "Receipting and reversal controls"],
-  ["Credits", "Credit permissions and approval thresholds"],
-  ["Refunds", "Refund methods and authorisation"],
-  ["Daily Close", "Cash-up and business-day controls"],
-  ["Late Fees", "Grace periods and recurring fee rules"],
-  ["Printing & Reports", "Document and report output defaults"],
-  ["SMS", "Text notification defaults"],
-  ["International", "Country, tax and address formatting"],
-  ["Inventory Transfers", "Inter-facility stock transfer controls"],
-  ["User Responses 1", "Configurable staff response list"],
-  ["User Responses 2", "Additional configurable responses"],
-  ["Activity Logging", "Audited operational activity settings"],
-  ["Reservations", "Hold periods and expiry behaviour"],
-  ["IP Restrictions", "Approved network access rules"],
-  ["Batch", "Bulk processing defaults"],
-] as const;
-
 const blankStore = {
   dbaName: "", legalName: "", address1: "", address2: "", city: "", province: "", postalCode: "", country: "South Africa",
   phone: "", fax: "", primaryDivision: "", managementArea: "", taxNumber: "", contactName: "", email: "",
@@ -165,13 +142,6 @@ function WebsiteAttributes({ initial, busy, onSave }: { initial?: Record<string,
 
 function AttributeEditor({ title, rows, onChange }: { title: string; rows: AttributeRow[]; onChange: (rows: AttributeRow[]) => void }) {
   return <section className="attribute-editor"><div className="attribute-heading"><h3>{title}</h3><button type="button" className="button button-secondary button-small" onClick={() => onChange([...rows, { name: "", description: "", used: true }])}><Plus size={14}/>Add attribute</button></div>{rows.length ? <div className="attribute-list">{rows.map((row, index) => <div className="attribute-row" key={index}><input aria-label={`${title} name ${index + 1}`} placeholder="Attribute name" value={row.name} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))}/><input aria-label={`${title} description ${index + 1}`} placeholder="Description" value={row.description} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))}/><label className="check-label compact"><input type="checkbox" checked={row.used} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, used: event.target.checked } : item))}/><span>Used</span></label><button type="button" className="icon-button" aria-label={`Remove ${row.name || "attribute"}`} onClick={() => onChange(rows.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15}/></button></div>)}</div> : <p className="empty-cell">No attributes added yet.</p>}</section>;
-}
-
-function ProgramDefaults({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
-  const [active, setActive] = useState(textValue(initial?.activeGroup) || "General");
-  const [settings, setSettings] = useState<Record<string, boolean>>((initial?.settings as Record<string, boolean>) ?? {});
-  const options = ["Enabled for this facility", "Require manager approval", "Record changes in activity log", "Apply to new records by default"];
-  return <div className="company-form"><div className="panel-heading"><div><p className="eyebrow">General setup</p><h2>Program defaults</h2><p className="panel-subtitle">The SiteLink default categories are retained so operational rules can be configured without losing familiar navigation.</p></div><Settings2 className="positive-icon"/></div><div className="program-tabs" role="tablist">{programGroups.map(([name]) => <button type="button" role="tab" aria-selected={active === name} className={active === name ? "active" : ""} onClick={() => setActive(name)} key={name}>{name}</button>)}</div><section className="program-default-panel"><h3>{active}</h3><p>{programGroups.find(([name]) => name === active)?.[1]}</p><div className="option-list">{options.map((option) => { const key = `${active}:${option}`; return <label className="check-label" key={option}><input type="checkbox" checked={Boolean(settings[key])} onChange={(event) => setSettings({ ...settings, [key]: event.target.checked })}/><span>{option}</span></label>; })}</div></section><FormFooter busy={busy} onClick={() => onSave({ activeGroup: active, settings })}/></div>;
 }
 
 function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) { return <label>{label}<input {...props}/></label>; }

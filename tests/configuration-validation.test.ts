@@ -26,3 +26,19 @@ test("company setup accepts structured website attributes", () => {
   });
   assert.equal(result.success, true);
 });
+
+test("company setup accepts store-specific structured program defaults", () => {
+  const result = configurationSchema.safeParse({
+    facilityId: "cm12345678901234567890123",
+    domain: "PROGRAM_DEFAULTS",
+    name: "Default",
+    status: "READY",
+    config: {
+      activeGroup: "Payments",
+      defaults: { Payments: { receiptPrinting: "prompt", preventBackdatedCharges: true } },
+      paymentTypes: [{ name: "Cash", description: "Cash", allowed: true, onlineAllowed: false, reversals: true }],
+      smsMessages: ["Your payment was received."],
+    },
+  });
+  assert.equal(result.success, true);
+});
