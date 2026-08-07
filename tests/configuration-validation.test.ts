@@ -35,9 +35,10 @@ test("company setup accepts store-specific structured program defaults", () => {
     status: "READY",
     config: {
       activeGroup: "Payments",
-      defaults: { Payments: { receiptPrinting: "prompt", preventBackdatedCharges: true } },
+      defaults: { Payments: { receiptPrinting: "prompt", preventBackdatedCharges: true }, "South Africa": { vatRate: 15, vatDisplay: "inclusive", measurementSystem: "Metric (metres)" }, Reservations: { reservationExpiryDays: 60 } },
       paymentTypes: [{ name: "Cash", description: "Cash", allowed: true, onlineAllowed: false, reversals: true }],
       smsMessages: ["Your payment was received."],
+      responseLists: { creditReasons: ["Billing correction"], callNotePhrases: [], complimentaryReasons: [], unitNotes: [] },
     },
   });
   assert.equal(result.success, true);

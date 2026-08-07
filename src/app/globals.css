@@ -819,9 +819,15 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .sms-row { display: grid; grid-template-columns: 1fr 34px; gap: 8px; align-items: center; }
 .sms-row textarea { resize: vertical; }
 .editor-add { justify-self: start; }
+.defaults-scope-note { margin: -7px 0 0; padding: 10px 12px; border-left: 3px solid var(--orange); background: #fff8f3; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.defaults-help { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.check-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; }
+.activity-reason-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.list-editor-row { display: grid; grid-template-columns: 1fr 34px; gap: 8px; align-items: center; }
+.list-editor-row input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); }
 @media (max-width: 1120px) { .company-form-grid, .attribute-columns { grid-template-columns: 1fr; } .add-store-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .defaults-grid { grid-template-columns: 1fr; } .defaults-group-wide { grid-column: auto; } .payment-type-row { grid-template-columns: 1fr 1fr; padding-bottom: 10px; border-bottom: 1px solid var(--line); } }
-@media (max-width: 640px) { .field-grid.two-column, .hours-row, .add-store-form, .range-grid, .payment-type-row { grid-template-columns: 1fr; } .facility-actions { width: 100%; align-items: stretch; flex-direction: column; } .facility-picker { min-width: 0; width: 100%; } .attribute-row { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .field-grid.two-column, .hours-row, .add-store-form, .range-grid, .payment-type-row, .check-grid, .activity-reason-grid { grid-template-columns: 1fr; } .facility-actions { width: 100%; align-items: stretch; flex-direction: column; } .facility-picker { min-width: 0; width: 100%; } .attribute-row { grid-template-columns: 1fr; } }
 .check-label { display: flex !important; align-items: flex-start; gap: 10px; }
 .check-label input { width: auto !important; min-height: auto !important; margin-top: 3px; }
 .safe-config-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px; border-radius: 10px; background: var(--amber-soft); color: var(--amber); font-size: 12px; line-height: 1.5; }

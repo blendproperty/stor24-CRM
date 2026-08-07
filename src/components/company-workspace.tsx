@@ -101,7 +101,7 @@ export function CompanyWorkspace() {
       <article className="panel panel-spacious company-setup-panel">
         {section === "STORE_INFORMATION" ? <StoreInformation key={`${facilityId}-${profile("STORE_INFORMATION")?.id ?? "new"}`} initial={profile("STORE_INFORMATION")?.config} busy={busy} onSave={(config) => save("STORE_INFORMATION", config)}/> : null}
         {section === "WEBSITE_ATTRIBUTES" ? <WebsiteAttributes key={`${facilityId}-${profile("WEBSITE_ATTRIBUTES")?.id ?? "new"}`} initial={profile("WEBSITE_ATTRIBUTES")?.config} busy={busy} onSave={(config) => save("WEBSITE_ATTRIBUTES", config)}/> : null}
-        {section === "PROGRAM_DEFAULTS" ? <ProgramDefaults key={`${facilityId}-${profile("PROGRAM_DEFAULTS")?.id ?? "new"}`} initial={profile("PROGRAM_DEFAULTS")?.config} busy={busy} onSave={(config) => save("PROGRAM_DEFAULTS", config)}/> : null}
+        {section === "PROGRAM_DEFAULTS" ? <ProgramDefaults key={`${facilityId}-${profile("PROGRAM_DEFAULTS")?.id ?? "new"}`} initial={profile("PROGRAM_DEFAULTS")?.config} busy={busy} stores={data?.facilities.map(({ id, name }) => ({ id, name })) ?? []} currentStoreId={facilityId} onSave={(config) => save("PROGRAM_DEFAULTS", config)}/> : null}
       </article>
     </section>
   </div>;
