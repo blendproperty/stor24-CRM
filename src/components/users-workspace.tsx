@@ -174,7 +174,7 @@ export function UsersWorkspace() {
             <button className="modal-close" onClick={() => setOpen(false)} aria-label="Close invitation dialog"><X size={18} /></button>
             <p className="eyebrow">Secure invitation</p>
             <h2 id="invite-title">Add an employee</h2>
-            <p className="modal-copy">Choose the employee's security level and store access. A secure invitation expires in seven days.</p>
+            <p className="modal-copy">Choose the employee&apos;s security level and store access. A secure invitation expires in seven days.</p>
             {invitationSent ? (
               <div className="invite-success">
                 <span><Check size={18} /> Invitation created</span>
