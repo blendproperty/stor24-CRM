@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Link2, Plus, Search, ShieldCheck, UserCog, UsersRound, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import { securityPermissionGroups } from "@/lib/security-permissions";
 
 type Invitation = {
   id: string;
@@ -23,6 +24,7 @@ type UserRow = {
   role: string;
   scope: string;
   active?: boolean;
+  permissions: string[];
 };
 
 type RoleOption = { name: string; permissions: string[] };
@@ -46,6 +48,8 @@ export function UsersWorkspace() {
   const [invitationSent, setInvitationSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [permissionUser, setPermissionUser] = useState<UserRow | null>(null);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     const response = await fetch("/api/v1/invitations", { cache: "no-store" });
@@ -110,6 +114,15 @@ export function UsersWorkspace() {
     await load();
   }
 
+  async function savePermissions() {
+    if (!permissionUser) return;
+    setBusy(true); setError("");
+    const response = await fetch(`/api/v1/users/${permissionUser.id}/permissions`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ permissions: selectedPermissions }) });
+    const payload = await response.json(); setBusy(false);
+    if (!response.ok) { setError(payload.error?.message ?? "Permissions could not be saved."); return; }
+    setPermissionUser(null); await load();
+  }
+
   const users = persistedUsers;
   const pending = invitations.filter((invitation) => invitation.status === "PENDING");
 
@@ -151,11 +164,11 @@ export function UsersWorkspace() {
         </div>
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>User</th><th>Role</th><th>Facility scope</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Security level</th><th>Store access</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>{users.map((user) => (
               <tr key={user.email}>
                 <td className="primary-cell">{user.name}<span className="secondary-cell">{user.email}</span></td>
-                <td><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => updateUser(user.id, { roleName: event.target.value })}>{(roleOptions.length ? roleOptions.map((role) => role.name) : roles.map(([role]) => role)).map((role) => <option key={role}>{role}</option>)}</select></td><td>{user.scope}</td><td><StatusPill tone={user.active === false ? "neutral" : "positive"}>{user.active === false ? "Inactive" : "Active"}</StatusPill></td><td><button className={user.active === false ? "text-button" : "text-button text-button-danger"} onClick={() => updateUser(user.id, { active: user.active === false })}>{user.active === false ? "Reactivate" : "Deactivate"}</button></td>
+                <td><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => updateUser(user.id, { roleName: event.target.value })}>{user.role.startsWith("Custom access · ") ? <option value={user.role}>Custom access</option> : null}{(roleOptions.length ? roleOptions.map((role) => role.name) : roles.map(([role]) => role)).map((role) => <option key={role}>{role}</option>)}</select></td><td>{user.scope}</td><td><StatusPill tone={user.active === false ? "neutral" : "positive"}>{user.active === false ? "Inactive" : "Active"}</StatusPill></td><td><div className="user-actions"><button className="text-button" onClick={() => { setPermissionUser(user); setSelectedPermissions(user.permissions); setError(""); }}>Edit permissions</button><button className={user.active === false ? "text-button" : "text-button text-button-danger"} onClick={() => updateUser(user.id, { active: user.active === false })}>{user.active === false ? "Reactivate" : "Deactivate"}</button></div></td>
               </tr>
             ))}</tbody>
           </table>
@@ -194,6 +207,13 @@ export function UsersWorkspace() {
           </div>
         </div>
       ) : null}
+      {permissionUser ? <div className="modal-backdrop" role="presentation"><div className="modal-card permission-modal" role="dialog" aria-modal="true" aria-labelledby="permissions-title">
+        <button className="modal-close" onClick={() => setPermissionUser(null)} aria-label="Close permissions dialog"><X size={18}/></button>
+        <p className="eyebrow">Individual access</p><h2 id="permissions-title">Permissions for {permissionUser.name}</h2>
+        <p className="modal-copy">Tick what this employee may access. Saving creates a custom security level for this employee and signs out their existing sessions.</p>
+        <div className="permission-groups">{securityPermissionGroups.map((group) => <fieldset key={group.label}><legend>{group.label}</legend>{group.permissions.map(([key, label]) => <label className="check-label" key={key}><input type="checkbox" checked={selectedPermissions.includes(key)} onChange={(event) => setSelectedPermissions((current) => event.target.checked ? [...current, key] : current.filter((permission) => permission !== key))}/><span>{label}</span></label>)}</fieldset>)}</div>
+        {error ? <p className="form-error">{error}</p> : null}<div className="form-footer"><button type="button" className="button button-secondary" onClick={() => setPermissionUser(null)}>Cancel</button><button type="button" className="button button-primary" disabled={busy} onClick={savePermissions}>{busy ? "Saving…" : "Save permissions"}</button></div>
+      </div></div> : null}
     </div>
   );
 }

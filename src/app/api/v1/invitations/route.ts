@@ -35,7 +35,7 @@ export async function GET() {
       orderBy: { name: "asc" },
       take: 100,
     }),
-    db.role.findMany({ where: { organisationId: organisation.id }, select: { name: true, permissions: true }, orderBy: { name: "asc" } }),
+    db.role.findMany({ where: { organisationId: organisation.id, NOT: { name: { startsWith: "Custom access · " } } }, select: { name: true, permissions: true }, orderBy: { name: "asc" } }),
     db.facility.findMany({ where: { organisationId: organisation.id, active: true }, select: { name: true, code: true }, orderBy: { name: "asc" } }),
   ]);
 
@@ -57,6 +57,7 @@ export async function GET() {
       active: user.active,
       role: user.roleAssignments[0]?.role.name ?? "Unassigned",
       scope: user.roleAssignments[0]?.facility?.name ?? "All facilities",
+      permissions: user.roleAssignments[0]?.role.permissions ?? [],
     })),
     roles,
     facilities,

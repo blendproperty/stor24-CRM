@@ -1,0 +1,19 @@
+export const securityPermissionGroups = [
+  { label: "Customers and leasing", permissions: [
+    ["leads.*", "Manage leads"], ["reservations.*", "Manage reservations"], ["move_in.create", "Process move-ins"], ["operations.view", "View tenant operations"],
+  ] },
+  { label: "Payments and adjustments", permissions: [
+    ["ledger.*", "Manage tenant ledgers"], ["payments.*", "Take and reverse payments"], ["collections.*", "Manage collections"], ["access.suspend", "Suspend access"], ["access.restore", "Restore access"],
+  ] },
+  { label: "Store operations", permissions: [
+    ["facility.*", "Manage store setup"], ["inventory.*", "Manage units and inventory"], ["daily_close.*", "Perform daily close"], ["facility_map.view", "View facility map"], ["phone.view", "Use phone workspace"],
+  ] },
+  { label: "Reports and communications", permissions: [
+    ["reports.view", "View reports"], ["reports.financial", "View financial reports"], ["reports.sales", "View sales reports"], ["reports.collections", "View collections reports"], ["reports.export", "Export reports"], ["reports.schedule", "Schedule reports"], ["communications.view", "View communications"],
+  ] },
+  { label: "Administration", permissions: [
+    ["configuration.view", "View company configuration"], ["configuration.manage", "Change company configuration"], ["users.view", "View employees"], ["users.manage", "Manage employees and access"], ["integrations.view", "View integrations"], ["integrations.manage", "Manage integrations"],
+  ] },
+] as const;
+
+export const securityPermissionKeys = securityPermissionGroups.flatMap((group) => group.permissions.map(([key]) => key));
