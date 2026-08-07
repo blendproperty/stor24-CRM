@@ -1,6 +1,15 @@
 import { moveInAction } from "@/app/actions/leasing";
-import { PageHeader } from "@/components/page-header";
+import { MoveInWorkspace } from "@/components/move-in-workspace";
 import { listLeasing } from "@/lib/leasing-service";
 import { requireScope } from "@/lib/scope";
-export const metadata={title:"New move-in"};
-export default async function MoveInPage(){const data=await listLeasing(await requireScope());const units=data.facilities.flatMap(f=>f.units.filter(u=>u.status==="AVAILABLE"||u.status==="RESERVED"));return <div className="page-stack"><PageHeader eyebrow="Guided workflow" title="New move-in" description="Create the account, tenancy, occupancy, initial charge and audit record in one database transaction."/><section className="panel panel-spacious"><form action={moveInAction} className="move-in-form"><label>Facility<select name="facilityId" required>{data.facilities.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label><label>Customer<select name="customerId" required>{data.customers.map(c=><option key={c.id} value={c.id}>{c.companyName||`${c.firstName} ${c.lastName}`}</option>)}</select></label><label>Unit<select name="unitId" required>{units.map(u=><option key={u.id} value={u.id}>{u.number} — {u.unitType.name} — R {Number(u.monthlyRate)}</option>)}</select></label><label>Reservation (optional)<select name="reservationId"><option value="">Direct move-in</option>{data.reservations.filter(r=>r.status==="ACTIVE").map(r=><option key={r.id} value={r.id}>{r.unit.number} / {r.customer.companyName||r.customer.firstName}</option>)}</select></label><label>Start date<input name="startDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label>Monthly rate override<input name="monthlyRate" type="number" step=".01"/></label><label>Initial charge<input name="initialCharge" type="number" step=".01" defaultValue="0"/></label><button className="button button-primary">Complete move-in</button></form></section></div>}
+
+export const metadata = { title: "Move in" };
+
+export default async function MoveInPage() {
+  const data = await listLeasing(await requireScope());
+  return <MoveInWorkspace action={moveInAction}
+    facilities={data.facilities.map(({ id, name }) => ({ id, name }))}
+    units={data.facilities.flatMap((facility) => facility.units.map((unit) => ({ id: unit.id, facilityId: unit.facilityId, number: unit.number, floor: unit.floor ?? "", zone: unit.zone ?? "", status: unit.status, monthlyRate: Number(unit.monthlyRate), typeName: unit.unitType.name, width: unit.unitType.widthMetres === null ? null : Number(unit.unitType.widthMetres), length: unit.unitType.lengthMetres === null ? null : Number(unit.unitType.lengthMetres), area: unit.unitType.areaSqMetres === null ? null : Number(unit.unitType.areaSqMetres), features: unit.unitType.features })))}
+    customers={data.customers.map((customer) => ({ id: customer.id, name: customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Unnamed customer" }))}
+    reservations={data.reservations.filter((reservation) => reservation.status === "ACTIVE").map((reservation) => ({ id: reservation.id, facilityId: reservation.facilityId, unitId: reservation.unitId, label: `${reservation.unit.number} · ${reservation.customer.companyName || reservation.customer.firstName || "Customer"}` }))}/>
+}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Boxes, CheckCircle2, ClipboardList, Plus, RefreshCw, Wrench } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import Link from "next/link";
 
 type Task = { id: string; title: string; status: string; priority: string; dueAt: string | null; facility?: { name: string } | null; assignee?: { name: string } | null };
 type Maintenance = { id: string; title: string; status: string; priority: string; unit?: { number: string } | null; facility: { name: string } };
@@ -56,6 +57,12 @@ export function OperationsWorkspace() {
     <section className="summary-strip">
       {[["Open tasks", openTasks.length], ["Service required", service.length], ["Reorder items", reorder.length], ["Daily closes", data?.dailyCloses.length ?? 0]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}
     </section>
+    <section className="panel panel-spacious"><div className="panel-heading"><div><p className="eyebrow">Accounts</p><h2>Customer account workflows</h2><p className="panel-subtitle">Start the primary rental and billing workflows from one place.</p></div></div><div className="operations-account-grid">
+      <Link href="/operations/move-in"><strong>Move in</strong><span>Select a vacant unit and create the tenancy account.</span></Link>
+      <Link href="/billing"><strong>Payments</strong><span>Post and review customer payments.</span></Link>
+      <Link href="/tenants"><strong>Transfer</strong><span>Move an active tenant to another available unit.</span></Link>
+      <Link href="/tenants"><strong>Move out</strong><span>Close an occupancy and release the unit.</span></Link>
+    </div></section>
     <section className="dashboard-grid">
       <article className="panel panel-spacious"><div className="panel-heading"><div><p className="eyebrow">Work queues</p><h2>Assigned operational tasks</h2></div><ClipboardList size={21}/></div>
         <div className="work-list">{openTasks.length ? openTasks.map((task) => <div className="work-row" key={task.id}><span className={`work-icon ${task.priority === "URGENT" ? "work-icon-danger" : task.priority === "HIGH" ? "work-icon-warning" : ""}`}><ClipboardList size={18}/></span><span className="work-copy"><strong>{task.title}</strong><small>{task.facility?.name ?? "Portfolio"} · {task.assignee?.name ?? "Unassigned"} · {task.dueAt ? new Date(task.dueAt).toLocaleString("en-ZA") : "No due date"}</small></span><button className="text-button" onClick={() => completeTask(task.id)}>Complete</button></div>) : <div className="empty-state"><CheckCircle2 size={32}/><strong>No open tasks</strong><p>Create a task to start the facility work queue.</p></div>}</div>
