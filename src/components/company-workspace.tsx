@@ -13,6 +13,18 @@ type SetupSection = "STORE_INFORMATION" | "WEBSITE_ATTRIBUTES" | "PROGRAM_DEFAUL
 
 const setupDomains = new Set<SetupSection>(["STORE_INFORMATION", "WEBSITE_ATTRIBUTES", "PROGRAM_DEFAULTS"]);
 const weekDays = ["Weekday", "Saturday", "Sunday"] as const;
+const citiesByProvince: Record<string, string[]> = {
+  "Eastern Cape": ["Bhisho", "East London", "Gqeberha", "Graaff-Reinet", "Mthatha"],
+  "Free State": ["Bethlehem", "Bloemfontein", "Sasolburg", "Welkom"],
+  Gauteng: ["Benoni", "Boksburg", "Centurion", "Germiston", "Johannesburg", "Kempton Park", "Midrand", "Pretoria", "Randburg", "Roodepoort", "Sandton", "Vereeniging"],
+  "KwaZulu-Natal": ["Ballito", "Durban", "Newcastle", "Pietermaritzburg", "Richards Bay", "Umhlanga"],
+  Limpopo: ["Mokopane", "Polokwane", "Thohoyandou", "Tzaneen"],
+  Mpumalanga: ["eMalahleni", "Mbombela", "Middelburg", "Secunda"],
+  "Northern Cape": ["Kimberley", "Kuruman", "Upington"],
+  "North West": ["Brits", "Klerksdorp", "Mahikeng", "Potchefstroom", "Rustenburg"],
+  "Western Cape": ["Cape Town", "George", "Knysna", "Mossel Bay", "Paarl", "Stellenbosch", "Worcester"],
+};
+const provinces = Object.keys(citiesByProvince);
 const programGroups = [
   ["General", "Currency, locale, timezone and regional behaviour"],
   ["Proration", "Move-in and move-out proration rules"],
@@ -113,6 +125,9 @@ function SetupNavButton({ active, configured, icon, label, onClick }: { active: 
 
 function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
   const values = { ...blankStore, ...initial };
+  const [province, setProvince] = useState(textValue(values.province));
+  const [city, setCity] = useState(textValue(values.city));
+  const cityOptions = citiesByProvince[province] ?? [];
   function submit(formData: FormData) {
     const config: Record<string, unknown> = {};
     Object.keys(blankStore).forEach((key) => { config[key] = typeof blankStore[key as keyof typeof blankStore] === "boolean" ? formData.get(key) === "on" : String(formData.get(key) ?? ""); });
@@ -122,7 +137,7 @@ function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, 
     <div className="panel-heading"><div><p className="eyebrow">General setup</p><h2>Store information</h2><p className="panel-subtitle">Contact information, business hours, location and website details for the selected facility.</p></div><Building2 className="positive-icon"/></div>
     <div className="company-form-grid">
       <fieldset><legend>Contact information</legend><div className="field-grid two-column">
-        <Field name="dbaName" label="Store name (DBA)" value={textValue(values.dbaName)} required/><Field name="legalName" label="Store legal name" value={textValue(values.legalName)}/><Field name="address1" label="Store address" value={textValue(values.address1)} required/><Field name="address2" label="Address line 2" value={textValue(values.address2)}/><Field name="city" label="City" value={textValue(values.city)} required/><Field name="province" label="Province / state" value={textValue(values.province)} required/><Field name="postalCode" label="Postal code" value={textValue(values.postalCode)} required/><Field name="country" label="Country" value={textValue(values.country)} required/><Field name="phone" label="Phone" value={textValue(values.phone)}/><Field name="fax" label="Fax" value={textValue(values.fax)}/><Field name="primaryDivision" label="Primary division" value={textValue(values.primaryDivision)}/><Field name="managementArea" label="Management area" value={textValue(values.managementArea)} maxLength={10}/><Field name="taxNumber" label="Tax number" value={textValue(values.taxNumber)}/><Field name="contactName" label="Store contact" value={textValue(values.contactName)}/><Field name="email" label="Email address" value={textValue(values.email)} type="email"/></div></fieldset>
+        <Field name="dbaName" label="Store name (DBA)" value={textValue(values.dbaName)} required/><Field name="legalName" label="Store legal name" value={textValue(values.legalName)}/><Field name="address1" label="Store address" value={textValue(values.address1)} required/><Field name="address2" label="Address line 2" value={textValue(values.address2)}/><SelectField name="city" label="City" value={city} options={cityOptions} placeholder={province ? "Select a major city" : "Select a province first"} disabled={!province} required onChange={(event) => setCity(event.target.value)}/><SelectField name="province" label="Province" value={province} options={provinces} placeholder="Select a province" required onChange={(event) => { const nextProvince = event.target.value; setProvince(nextProvince); setCity((current) => citiesByProvince[nextProvince]?.includes(current) ? current : ""); }}/><Field name="postalCode" label="Postal code" value={textValue(values.postalCode)} required/><Field name="country" label="Country" value={textValue(values.country)} required/><Field name="phone" label="Phone" value={textValue(values.phone)}/><Field name="fax" label="Fax" value={textValue(values.fax)}/><Field name="primaryDivision" label="Primary division" value={textValue(values.primaryDivision)}/><Field name="managementArea" label="Management area" value={textValue(values.managementArea)} maxLength={10}/><Field name="taxNumber" label="Tax number" value={textValue(values.taxNumber)}/><Field name="contactName" label="Store contact" value={textValue(values.contactName)}/><Field name="email" label="Email address" value={textValue(values.email)} type="email"/></div></fieldset>
       <fieldset><legend><Clock3 size={16}/>Business hours</legend><div className="hours-grid">{weekDays.map((day) => { const key = day.toLowerCase(); return <div className="hours-row" key={day}><label className="check-label"><input type="checkbox" name={`${key}Closed`} defaultChecked={booleanValue(values[`${key}Closed` as keyof typeof values])}/><span>Closed {day}</span></label><Field name={`${key}Start`} label="Start" value={textValue(values[`${key}Start` as keyof typeof values])} type="time"/><Field name={`${key}End`} label="End" value={textValue(values[`${key}End` as keyof typeof values])} type="time"/></div>; })}</div><p className="field-help">Business day runs from 00:00 to 23:59.</p></fieldset>
       <fieldset><legend><MapPin size={16}/>Store location</legend><div className="field-grid two-column"><Field name="latitude" label="Latitude" value={textValue(values.latitude)} inputMode="decimal"/><Field name="longitude" label="Longitude" value={textValue(values.longitude)} inputMode="decimal"/></div></fieldset>
       <fieldset><legend><Globe2 size={16}/>Website information</legend><div className="field-grid"><Field name="websiteUrl" label="Website URL" value={textValue(values.websiteUrl)} type="url"/><label className="check-label"><input type="checkbox" name="onlinePayments" defaultChecked={booleanValue(values.onlinePayments)}/><span>Online payments supported</span></label><label>Driving directions or location description<textarea name="directions" rows={5} defaultValue={textValue(values.directions)}/></label></div></fieldset>
@@ -149,4 +164,5 @@ function ProgramDefaults({ initial, busy, onSave }: { initial?: Record<string, u
 }
 
 function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) { return <label>{label}<input {...props}/></label>; }
+function SelectField({ label, options, placeholder, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; options: string[]; placeholder: string }) { return <label>{label}<select {...props}><option value="">{placeholder}</option>{props.value && !options.includes(String(props.value)) ? <option value={String(props.value)}>{String(props.value)}</option> : null}{options.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>; }
 function FormFooter({ busy, onClick }: { busy: boolean; onClick?: () => void }) { return <div className="form-footer"><button type={onClick ? "button" : "submit"} className="button button-primary" disabled={busy} onClick={onClick}>{busy ? "Saving…" : "Save setup"}</button></div>; }

@@ -770,7 +770,9 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .company-form .check-label { display: flex; align-items: center; gap: 8px; color: var(--ink); font-size: 12px; }
 .company-form .check-label input { width: 16px; min-height: 16px; }
 .hours-grid { display: grid; gap: 13px; }
-.hours-row { display: grid; grid-template-columns: 1fr 100px 100px; gap: 9px; align-items: end; }
+.hours-row { display: grid; grid-template-columns: minmax(70px, .75fr) repeat(2, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.hours-row > * { min-width: 0; }
+.hours-row input[type="time"] { min-width: 0; padding-inline: 8px; }
 .field-help { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
 .form-footer { display: flex; justify-content: flex-end; padding-top: 4px; }
 .attribute-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
