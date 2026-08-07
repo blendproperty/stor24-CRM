@@ -23,7 +23,7 @@ export async function GET() {
   const organisation = await db.organisation.findUniqueOrThrow({ where: { id: (await requireOwner()).user.organisationId } });
   await expireOldInvitations();
 
-  const [invitations, users] = await Promise.all([
+  const [invitations, users, roles, facilities] = await Promise.all([
     db.userInvitation.findMany({
       where: { organisationId: organisation.id },
       orderBy: { createdAt: "desc" },
@@ -35,6 +35,8 @@ export async function GET() {
       orderBy: { name: "asc" },
       take: 100,
     }),
+    db.role.findMany({ where: { organisationId: organisation.id }, select: { name: true, permissions: true }, orderBy: { name: "asc" } }),
+    db.facility.findMany({ where: { organisationId: organisation.id, active: true }, select: { name: true, code: true }, orderBy: { name: "asc" } }),
   ]);
 
   return Response.json({
@@ -56,6 +58,8 @@ export async function GET() {
       role: user.roleAssignments[0]?.role.name ?? "Unassigned",
       scope: user.roleAssignments[0]?.facility?.name ?? "All facilities",
     })),
+    roles,
+    facilities,
   });
 }
 

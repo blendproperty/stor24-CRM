@@ -25,6 +25,9 @@ type UserRow = {
   active?: boolean;
 };
 
+type RoleOption = { name: string; permissions: string[] };
+type FacilityOption = { name: string; code: string };
+
 const roles = [
   ["Organisation owner", "Full portfolio control"],
   ["Facility manager", "Facility operations and approvals"],
@@ -38,6 +41,8 @@ export function UsersWorkspace() {
   const [open, setOpen] = useState(false);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [persistedUsers, setPersistedUsers] = useState<UserRow[]>([]);
+  const [roleOptions, setRoleOptions] = useState<RoleOption[]>([]);
+  const [facilities, setFacilities] = useState<FacilityOption[]>([]);
   const [invitationSent, setInvitationSent] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,6 +53,8 @@ export function UsersWorkspace() {
     const payload = await response.json();
     setInvitations(payload.data);
     setPersistedUsers(payload.users);
+    setRoleOptions(payload.roles ?? []);
+    setFacilities(payload.facilities ?? []);
   }, []);
 
   useEffect(() => {
@@ -58,6 +65,8 @@ export function UsersWorkspace() {
         if (!cancelled && payload) {
           setInvitations(payload.data);
           setPersistedUsers(payload.users);
+          setRoleOptions(payload.roles ?? []);
+          setFacilities(payload.facilities ?? []);
         }
       });
     return () => {
@@ -110,10 +119,10 @@ export function UsersWorkspace() {
         eyebrow="Access administration"
         title="Users & permissions"
         description="Manage employees, facility scope, security levels, approval thresholds and service accounts."
-        action={<button className="button button-primary" onClick={() => { setOpen(true); setInvitationSent(false); setError(""); }}><Plus size={16} /> Invite user</button>}
+        action={<button className="button button-primary" onClick={() => { setOpen(true); setInvitationSent(false); setError(""); }}><Plus size={16} /> Add employee</button>}
       />
       <section className="summary-strip">
-        {[["Active users", String(users.filter((user) => user.active !== false).length)], ["Pending invites", String(pending.length)], ["Security roles", "6"], ["MFA adoption", "Planned"]].map(([label, value]) => (
+        {[["Active employees", String(users.filter((user) => user.active !== false).length)], ["Pending invites", String(pending.length)], ["Security levels", String(roleOptions.length)], ["Access model", "Role based"]].map(([label, value]) => (
           <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>
         ))}
       </section>
@@ -146,7 +155,7 @@ export function UsersWorkspace() {
             <tbody>{users.map((user) => (
               <tr key={user.email}>
                 <td className="primary-cell">{user.name}<span className="secondary-cell">{user.email}</span></td>
-                <td><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => updateUser(user.id, { roleName: event.target.value })}>{roles.map(([role]) => <option key={role}>{role}</option>)}</select></td><td>{user.scope}</td><td><StatusPill tone={user.active === false ? "neutral" : "positive"}>{user.active === false ? "Inactive" : "Active"}</StatusPill></td><td><button className={user.active === false ? "text-button" : "text-button text-button-danger"} onClick={() => updateUser(user.id, { active: user.active === false })}>{user.active === false ? "Reactivate" : "Deactivate"}</button></td>
+                <td><select aria-label={`Role for ${user.name}`} value={user.role} onChange={(event) => updateUser(user.id, { roleName: event.target.value })}>{(roleOptions.length ? roleOptions.map((role) => role.name) : roles.map(([role]) => role)).map((role) => <option key={role}>{role}</option>)}</select></td><td>{user.scope}</td><td><StatusPill tone={user.active === false ? "neutral" : "positive"}>{user.active === false ? "Inactive" : "Active"}</StatusPill></td><td><button className={user.active === false ? "text-button" : "text-button text-button-danger"} onClick={() => updateUser(user.id, { active: user.active === false })}>{user.active === false ? "Reactivate" : "Deactivate"}</button></td>
               </tr>
             ))}</tbody>
           </table>
@@ -154,7 +163,7 @@ export function UsersWorkspace() {
       </section>
       <section className="panel panel-spacious">
         <div className="panel-heading"><div><h2>Security roles</h2><p className="panel-subtitle">Role-based permissions with facility scope and approval limits.</p></div><ShieldCheck className="positive-icon" /></div>
-        <div className="role-grid">{roles.map(([role, description]) => (
+        <div className="role-grid">{(roleOptions.length ? roleOptions.map((role) => [role.name, role.permissions.includes("*") ? "Full organisation control" : `${role.permissions.length} assigned permissions`]) : roles).map(([role, description]) => (
           <article className="role-card" key={role}><UsersRound size={18} /><div><strong>{role}</strong><p>{description}</p></div></article>
         ))}</div>
       </section>
@@ -164,8 +173,8 @@ export function UsersWorkspace() {
           <div className="modal-card" role="dialog" aria-modal="true" aria-labelledby="invite-title">
             <button className="modal-close" onClick={() => setOpen(false)} aria-label="Close invitation dialog"><X size={18} /></button>
             <p className="eyebrow">Secure invitation</p>
-            <h2 id="invite-title">Invite a user</h2>
-            <p className="modal-copy">Send a single-use invitation that expires in seven days.</p>
+            <h2 id="invite-title">Add an employee</h2>
+            <p className="modal-copy">Choose the employee's security level and store access. A secure invitation expires in seven days.</p>
             {invitationSent ? (
               <div className="invite-success">
                 <span><Check size={18} /> Invitation created</span>
@@ -176,8 +185,8 @@ export function UsersWorkspace() {
               <form action={submitInvitation} className="invite-form">
                 <label>Full name<input name="name" required minLength={2} autoComplete="name" /></label>
                 <label>Email address<input name="email" required type="email" autoComplete="email" /></label>
-                <label>Security role<select name="roleName" defaultValue="Facility manager">{roles.map(([role]) => <option key={role}>{role}</option>)}</select></label>
-                <label>Facility scope<select name="facilityCode" defaultValue="RANDBURG"><option value="">All facilities</option><option value="RANDBURG">Stor24 Randburg</option></select></label>
+                <label>Security level<select name="roleName" defaultValue="Facility manager">{(roleOptions.length ? roleOptions.map((role) => role.name) : roles.map(([role]) => role)).map((role) => <option key={role}>{role}</option>)}</select></label>
+                <label>Store access<select name="facilityCode" defaultValue=""><option value="">All stores</option>{facilities.map((facility) => <option value={facility.code} key={facility.code}>{facility.name}</option>)}</select></label>
                 {error ? <p className="form-error">{error}</p> : null}
                 <button className="button button-primary" disabled={busy} type="submit"><Link2 size={16} />{busy ? "Creating…" : "Create invitation"}</button>
               </form>

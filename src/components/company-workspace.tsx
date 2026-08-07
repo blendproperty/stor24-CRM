@@ -1,18 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, CheckCircle2, Clock3, Globe2, MapPin, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Building2, CheckCircle2, Clock3, Globe2, MapPin, Plus, SlidersHorizontal, Trash2, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ProgramDefaults } from "@/components/program-defaults";
+import { TenantDefaults } from "@/components/tenant-defaults";
 import { StatusPill } from "@/components/status-pill";
 
 type Profile = { id: string; facilityId: string | null; domain: string; name: string; status: string; config: Record<string, unknown> };
 type Facility = { id: string; name: string; code: string; timezone: string; active: boolean };
 type SetupData = { profiles: Profile[]; integrations: { status: string }[]; facilities: Facility[]; roles: unknown[]; users: unknown[] };
 type AttributeRow = { name: string; description: string; used: boolean };
-type SetupSection = "STORE_INFORMATION" | "WEBSITE_ATTRIBUTES" | "PROGRAM_DEFAULTS";
+type SetupSection = "STORE_INFORMATION" | "TENANT_DEFAULTS" | "WEBSITE_ATTRIBUTES" | "PROGRAM_DEFAULTS";
 
-const setupDomains = new Set<SetupSection>(["STORE_INFORMATION", "WEBSITE_ATTRIBUTES", "PROGRAM_DEFAULTS"]);
+const setupDomains = new Set<SetupSection>(["STORE_INFORMATION", "TENANT_DEFAULTS", "WEBSITE_ATTRIBUTES", "PROGRAM_DEFAULTS"]);
 const weekDays = ["Weekday", "Saturday", "Sunday"] as const;
 const citiesByProvince: Record<string, string[]> = {
   "Eastern Cape": ["Bhisho", "East London", "Gqeberha", "Graaff-Reinet", "Mthatha"],
@@ -90,16 +91,18 @@ export function CompanyWorkspace() {
     <PageHeader eyebrow="Administration" title="Company setup" description="Facility information and operational defaults, organised to match the SiteLink Site Setup workflow." action={<div className="facility-actions"><label className="facility-picker"><span>Store</span><select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setNotice(""); }}>{data?.facilities.map((facility) => <option value={facility.id} key={facility.id}>{facility.name}</option>)}</select></label><button type="button" className="button button-primary" onClick={() => setShowAddStore((current) => !current)}><Plus size={16}/>{showAddStore ? "Cancel" : "Add store"}</button></div>}/>
     {showAddStore ? <form action={addStore} className="panel add-store-form"><div><p className="eyebrow">Portfolio</p><h2>Add another store</h2><p className="panel-subtitle">Create a separate store workspace with its own contact details, hours, website attributes and defaults.</p></div><Field name="name" label="Store name" placeholder="e.g. Store 7 – Location TBC" required/><Field name="code" label="Store code" placeholder="e.g. STORE-7" required maxLength={40}/><button className="button button-primary" disabled={storeBusy}>{storeBusy ? "Adding…" : "Add store"}</button></form> : null}
     {error ? <p className="form-error">{error}</p> : null}{notice ? <p className="form-success"><CheckCircle2 size={16}/>{notice}</p> : null}
-    <section className="summary-strip">{[["Facilities", data?.facilities.length ?? 0], ["Employees", data?.users.length ?? 0], ["Security levels", data?.roles.length ?? 0], ["Setup sections", `${configured.size}/3`]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
+    <section className="summary-strip">{[["Facilities", data?.facilities.length ?? 0], ["Employees", data?.users.length ?? 0], ["Security levels", data?.roles.length ?? 0], ["Setup sections", `${configured.size}/4`]].map(([label, value]) => <div className="summary-cell" key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
     <section className="setup-layout company-setup-layout">
       <nav className="panel setup-nav" aria-label="Company setup sections">
         <div className="setup-nav-heading"><Building2 size={18}/><div><strong>Site setup</strong><small>{selectedFacility?.name ?? "Select a facility"}</small></div></div>
         <SetupNavButton active={section === "STORE_INFORMATION"} configured={configured.has("STORE_INFORMATION")} icon={<MapPin size={17}/>} label="Store information" onClick={() => setSection("STORE_INFORMATION")}/>
+        <SetupNavButton active={section === "TENANT_DEFAULTS"} configured={configured.has("TENANT_DEFAULTS")} icon={<UsersRound size={17}/>} label="Tenant defaults" onClick={() => setSection("TENANT_DEFAULTS")}/>
         <SetupNavButton active={section === "WEBSITE_ATTRIBUTES"} configured={configured.has("WEBSITE_ATTRIBUTES")} icon={<Globe2 size={17}/>} label="Attributes on website" onClick={() => setSection("WEBSITE_ATTRIBUTES")}/>
         <SetupNavButton active={section === "PROGRAM_DEFAULTS"} configured={configured.has("PROGRAM_DEFAULTS")} icon={<SlidersHorizontal size={17}/>} label="Program defaults" onClick={() => setSection("PROGRAM_DEFAULTS")}/>
       </nav>
       <article className="panel panel-spacious company-setup-panel">
         {section === "STORE_INFORMATION" ? <StoreInformation key={`${facilityId}-${profile("STORE_INFORMATION")?.id ?? "new"}`} initial={profile("STORE_INFORMATION")?.config} busy={busy} onSave={(config) => save("STORE_INFORMATION", config)}/> : null}
+        {section === "TENANT_DEFAULTS" ? <TenantDefaults key={`${facilityId}-${profile("TENANT_DEFAULTS")?.id ?? "new"}`} initial={profile("TENANT_DEFAULTS")?.config} busy={busy} onSave={(config) => save("TENANT_DEFAULTS", config)}/> : null}
         {section === "WEBSITE_ATTRIBUTES" ? <WebsiteAttributes key={`${facilityId}-${profile("WEBSITE_ATTRIBUTES")?.id ?? "new"}`} initial={profile("WEBSITE_ATTRIBUTES")?.config} busy={busy} onSave={(config) => save("WEBSITE_ATTRIBUTES", config)}/> : null}
         {section === "PROGRAM_DEFAULTS" ? <ProgramDefaults key={`${facilityId}-${profile("PROGRAM_DEFAULTS")?.id ?? "new"}`} initial={profile("PROGRAM_DEFAULTS")?.config} busy={busy} stores={data?.facilities.map(({ id, name }) => ({ id, name })) ?? []} currentStoreId={facilityId} onSave={(config) => save("PROGRAM_DEFAULTS", config)}/> : null}
       </article>
