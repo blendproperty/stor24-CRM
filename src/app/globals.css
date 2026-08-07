@@ -810,7 +810,9 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .radio-field { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
 .radio-field legend { margin-bottom: 7px; padding: 0; color: var(--muted); font-size: 11px; font-weight: 800; }
 .radio-field label { display: flex; align-items: flex-start; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
-.radio-field input { margin-top: 2px; }
+.program-defaults-workspace .radio-field input[type="radio"] { appearance: auto; flex: 0 0 16px; width: 16px !important; height: 16px; min-height: 16px !important; margin: 1px 0 0; padding: 0 !important; border: initial; border-radius: 50%; accent-color: var(--orange); }
+.program-defaults-workspace .radio-field label > span { flex: 1; line-height: 1.35; }
+.program-defaults-workspace .check-label input[type="checkbox"] { appearance: auto; flex: 0 0 15px; width: 15px !important; height: 15px; min-height: 15px !important; margin: 1px 0 0; padding: 0 !important; border: initial; accent-color: var(--orange); }
 .range-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .editor-list { display: grid; gap: 8px; }
 .payment-type-row { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(170px, 1.4fr) repeat(3, auto) 34px; gap: 8px; align-items: center; }
