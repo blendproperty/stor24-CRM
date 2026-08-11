@@ -16,6 +16,14 @@ enum UnitStatus {
   UNAVAILABLE
 }
 
+enum MapElementType {
+  UNIT
+  ZONE
+  WALL
+  DOOR
+  LABEL
+}
+
 enum LeadStage {
   NEW
   CONTACTED
@@ -144,35 +152,35 @@ enum ReportRunStatus {
 }
 
 model Organisation {
-  id         String     @id @default(cuid())
-  name       String
-  slug       String     @unique
-  timezone   String     @default("Africa/Johannesburg")
-  currency   String     @default("ZAR")
-  facilities Facility[]
-  customers  Customer[]
-  users      User[]
-  roles      Role[]
-  tasks      Task[]
-  auditEvents AuditEvent[]
-  integrations IntegrationConnection[]
-  reportSchedules ReportSchedule[]
-  reportRuns ReportRun[]
+  id                     String                  @id @default(cuid())
+  name                   String
+  slug                   String                  @unique
+  timezone               String                  @default("Africa/Johannesburg")
+  currency               String                  @default("ZAR")
+  facilities             Facility[]
+  customers              Customer[]
+  users                  User[]
+  roles                  Role[]
+  tasks                  Task[]
+  auditEvents            AuditEvent[]
+  integrations           IntegrationConnection[]
+  reportSchedules        ReportSchedule[]
+  reportRuns             ReportRun[]
   communicationTemplates CommunicationTemplate[]
-  communications CommunicationLog[]
-  webhookInbox WebhookInbox[]
-  webhookOutbox WebhookOutbox[]
-  invitations UserInvitation[]
-  configurationProfiles ConfigurationProfile[]
-  chargeDefinitions ChargeDefinition[]
-  discountPlans DiscountPlan[]
-  products Product[]
-  maintenanceRequests MaintenanceRequest[]
-  unitNotes UnitNote[]
-  dailyCloses DailyClose[]
-  passwordResetTokens PasswordResetToken[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  communications         CommunicationLog[]
+  webhookInbox           WebhookInbox[]
+  webhookOutbox          WebhookOutbox[]
+  invitations            UserInvitation[]
+  configurationProfiles  ConfigurationProfile[]
+  chargeDefinitions      ChargeDefinition[]
+  discountPlans          DiscountPlan[]
+  products               Product[]
+  maintenanceRequests    MaintenanceRequest[]
+  unitNotes              UnitNote[]
+  dailyCloses            DailyClose[]
+  passwordResetTokens    PasswordResetToken[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 }
 
 model UserInvitation {
@@ -197,173 +205,212 @@ model UserInvitation {
 }
 
 model Facility {
-  id             String      @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  name           String
-  code           String
-  timezone       String      @default("Africa/Johannesburg")
-  address        Json?
-  active         Boolean     @default(true)
-  unitTypes      UnitType[]
-  units          Unit[]
-  leads          Lead[]
-  reservations   Reservation[]
-  tenancies      Tenancy[]
-  roleAssignments RoleAssignment[]
-  tasks          Task[]
-  integrations   IntegrationConnection[]
+  id                    String                  @id @default(cuid())
+  organisationId        String
+  organisation          Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  name                  String
+  code                  String
+  timezone              String                  @default("Africa/Johannesburg")
+  address               Json?
+  active                Boolean                 @default(true)
+  unitTypes             UnitType[]
+  units                 Unit[]
+  maps                  FacilityMap[]
+  leads                 Lead[]
+  reservations          Reservation[]
+  tenancies             Tenancy[]
+  roleAssignments       RoleAssignment[]
+  tasks                 Task[]
+  integrations          IntegrationConnection[]
   configurationProfiles ConfigurationProfile[]
-  products       Product[]
-  maintenanceRequests MaintenanceRequest[]
-  unitNotes      UnitNote[]
-  dailyCloses    DailyClose[]
-  auditEvents    AuditEvent[]
-  reportSchedules ReportSchedule[]
-  reportRuns      ReportRun[]
-  communications CommunicationLog[]
-  webhookInbox   WebhookInbox[]
-  webhookOutbox  WebhookOutbox[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  products              Product[]
+  maintenanceRequests   MaintenanceRequest[]
+  unitNotes             UnitNote[]
+  dailyCloses           DailyClose[]
+  auditEvents           AuditEvent[]
+  reportSchedules       ReportSchedule[]
+  reportRuns            ReportRun[]
+  communications        CommunicationLog[]
+  webhookInbox          WebhookInbox[]
+  webhookOutbox         WebhookOutbox[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 
   @@unique([organisationId, code])
   @@index([organisationId, active])
 }
 
 model UnitType {
-  id          String   @id @default(cuid())
-  facilityId  String
-  facility    Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  name        String
-  widthMetres Decimal? @db.Decimal(8, 2)
+  id           String   @id @default(cuid())
+  facilityId   String
+  facility     Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  name         String
+  widthMetres  Decimal? @db.Decimal(8, 2)
   lengthMetres Decimal? @db.Decimal(8, 2)
   areaSqMetres Decimal? @db.Decimal(8, 2)
-  features    String[]
-  units       Unit[]
-  leads       Lead[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  features     String[]
+  units        Unit[]
+  leads        Lead[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@unique([facilityId, name])
 }
 
 model Unit {
-  id          String      @id @default(cuid())
-  facilityId  String
-  facility    Facility    @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  unitTypeId  String
-  unitType    UnitType    @relation(fields: [unitTypeId], references: [id])
-  number      String
-  floor       String?
-  zone        String?
-  status      UnitStatus  @default(AVAILABLE)
-  monthlyRate Decimal     @db.Decimal(12, 2)
-  taxRate     Decimal     @default(0) @db.Decimal(7, 4)
-  reservations Reservation[]
-  occupancies Occupancy[]
-  notes       UnitNote[]
+  id                  String               @id @default(cuid())
+  facilityId          String
+  facility            Facility             @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  unitTypeId          String
+  unitType            UnitType             @relation(fields: [unitTypeId], references: [id])
+  number              String
+  floor               String?
+  zone                String?
+  status              UnitStatus           @default(AVAILABLE)
+  monthlyRate         Decimal              @db.Decimal(12, 2)
+  taxRate             Decimal              @default(0) @db.Decimal(7, 4)
+  reservations        Reservation[]
+  occupancies         Occupancy[]
+  notes               UnitNote[]
   maintenanceRequests MaintenanceRequest[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  mapElements         MapElement[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([facilityId, number])
   @@index([facilityId, status, unitTypeId])
 }
 
+model FacilityMap {
+  id            String       @id @default(cuid())
+  facilityId    String
+  facility      Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  name          String
+  width         Int          @default(1200)
+  height        Int          @default(720)
+  backgroundUrl String?
+  elements      MapElement[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([facilityId, name])
+  @@index([facilityId, updatedAt])
+}
+
+model MapElement {
+  id        String         @id @default(cuid())
+  mapId     String
+  map       FacilityMap    @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  unitId    String?        @unique
+  unit      Unit?          @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  type      MapElementType
+  x         Int
+  y         Int
+  width     Int
+  height    Int
+  rotation  Int            @default(0)
+  label     String?
+  config    Json?
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([mapId, type, sortOrder])
+}
+
 model Customer {
-  id             String       @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  type           String       @default("INDIVIDUAL")
-  firstName      String?
-  lastName       String?
-  companyName    String?
-  email          String?
-  phone          String?
-  identityRef    String?
-  taxNumber      String?
-  dateOfBirth    DateTime?
-  billingAddress Json?
-  emergencyContact Json?
-  alternateContact Json?
-  workContact    Json?
+  id                   String             @id @default(cuid())
+  organisationId       String
+  organisation         Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  type                 String             @default("INDIVIDUAL")
+  firstName            String?
+  lastName             String?
+  companyName          String?
+  email                String?
+  phone                String?
+  identityRef          String?
+  taxNumber            String?
+  dateOfBirth          DateTime?
+  billingAddress       Json?
+  emergencyContact     Json?
+  alternateContact     Json?
+  workContact          Json?
   communicationConsent Json?
-  notes          String?
-  leads          Lead[]
-  reservations   Reservation[]
-  tenancies      Tenancy[]
-  accounts       Account[]
-  tasks          Task[]
-  communications CommunicationLog[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  notes                String?
+  leads                Lead[]
+  reservations         Reservation[]
+  tenancies            Tenancy[]
+  accounts             Account[]
+  tasks                Task[]
+  communications       CommunicationLog[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
   @@index([organisationId, email])
   @@index([organisationId, phone])
 }
 
 model Lead {
-  id                String     @id @default(cuid())
+  id                String        @id @default(cuid())
   facilityId        String
-  facility          Facility   @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facility          Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   customerId        String?
-  customer          Customer?  @relation(fields: [customerId], references: [id])
+  customer          Customer?     @relation(fields: [customerId], references: [id])
   desiredUnitTypeId String?
-  desiredUnitType   UnitType?  @relation(fields: [desiredUnitTypeId], references: [id])
-  stage             LeadStage  @default(NEW)
+  desiredUnitType   UnitType?     @relation(fields: [desiredUnitTypeId], references: [id])
+  stage             LeadStage     @default(NEW)
   source            String
   notes             String?
   expectedMoveIn    DateTime?
   nextActionAt      DateTime?
   assignedToId      String?
-  assignedTo        User?      @relation(fields: [assignedToId], references: [id])
+  assignedTo        User?         @relation(fields: [assignedToId], references: [id])
   reservations      Reservation[]
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
   @@index([facilityId, stage, nextActionAt])
 }
 
 model Reservation {
-  id          String    @id @default(cuid())
-  facilityId  String
-  facility    Facility  @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  customerId  String
-  customer    Customer  @relation(fields: [customerId], references: [id])
-  leadId      String?
-  lead        Lead?     @relation(fields: [leadId], references: [id])
-  unitId      String
-  unit        Unit      @relation(fields: [unitId], references: [id])
-  status      ReservationStatus @default(ACTIVE)
-  quotedRate  Decimal   @db.Decimal(12, 2)
-  holdExpiresAt DateTime?
-  intendedMoveIn DateTime?
-  convertedTenancyId String? @unique
-  convertedTenancy Tenancy? @relation(fields: [convertedTenancyId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String            @id @default(cuid())
+  facilityId         String
+  facility           Facility          @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  customerId         String
+  customer           Customer          @relation(fields: [customerId], references: [id])
+  leadId             String?
+  lead               Lead?             @relation(fields: [leadId], references: [id])
+  unitId             String
+  unit               Unit              @relation(fields: [unitId], references: [id])
+  status             ReservationStatus @default(ACTIVE)
+  quotedRate         Decimal           @db.Decimal(12, 2)
+  holdExpiresAt      DateTime?
+  intendedMoveIn     DateTime?
+  convertedTenancyId String?           @unique
+  convertedTenancy   Tenancy?          @relation(fields: [convertedTenancyId], references: [id])
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@index([facilityId, status, holdExpiresAt])
 }
 
 model Tenancy {
-  id           String         @id @default(cuid())
-  facilityId   String
-  facility     Facility       @relation(fields: [facilityId], references: [id], onDelete: Cascade)
-  customerId   String
-  customer     Customer       @relation(fields: [customerId], references: [id])
-  accountId    String         @unique
-  account      Account        @relation(fields: [accountId], references: [id])
-  status       TenancyStatus  @default(DRAFT)
-  startDate    DateTime
-  endDate      DateTime?
-  noticeDate   DateTime?
-  occupancies  Occupancy[]
-  reservation  Reservation?
-  documents    Document[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id          String        @id @default(cuid())
+  facilityId  String
+  facility    Facility      @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  accountId   String        @unique
+  account     Account       @relation(fields: [accountId], references: [id])
+  status      TenancyStatus @default(DRAFT)
+  startDate   DateTime
+  endDate     DateTime?
+  noticeDate  DateTime?
+  occupancies Occupancy[]
+  reservation Reservation?
+  documents   Document[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   @@index([facilityId, status])
   @@index([customerId, status])
@@ -388,98 +435,98 @@ model Occupancy {
 }
 
 model Account {
-  id             String        @id @default(cuid())
-  customerId     String
-  customer       Customer      @relation(fields: [customerId], references: [id])
-  accountNumber  String        @unique
-  balance        Decimal       @default(0) @db.Decimal(14, 2)
-  currency       String        @default("ZAR")
-  tenancy        Tenancy?
-  ledgerEntries  LedgerEntry[]
-  payments       Payment[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  accountNumber String        @unique
+  balance       Decimal       @default(0) @db.Decimal(14, 2)
+  currency      String        @default("ZAR")
+  tenancy       Tenancy?
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@index([customerId])
 }
 
 model LedgerEntry {
-  id            String          @id @default(cuid())
-  accountId     String
-  account       Account         @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  type          LedgerEntryType
-  amount        Decimal         @db.Decimal(14, 2)
-  taxAmount     Decimal         @default(0) @db.Decimal(14, 2)
-  description   String
-  effectiveAt   DateTime
-  reversalOfId  String?
-  externalRef   String?
-  metadata      Json?
-  createdById   String?
-  createdBy     User?           @relation(fields: [createdById], references: [id])
-  createdAt     DateTime        @default(now())
+  id           String          @id @default(cuid())
+  accountId    String
+  account      Account         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  type         LedgerEntryType
+  amount       Decimal         @db.Decimal(14, 2)
+  taxAmount    Decimal         @default(0) @db.Decimal(14, 2)
+  description  String
+  effectiveAt  DateTime
+  reversalOfId String?
+  externalRef  String?
+  metadata     Json?
+  createdById  String?
+  createdBy    User?           @relation(fields: [createdById], references: [id])
+  createdAt    DateTime        @default(now())
 
-  @@index([accountId, effectiveAt])
   @@unique([accountId, externalRef])
+  @@index([accountId, effectiveAt])
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  accountId       String
-  account         Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  status          PaymentStatus @default(PENDING)
-  amount          Decimal       @db.Decimal(14, 2)
-  currency        String        @default("ZAR")
-  method          String
-  provider        String?
-  providerRef     String?
-  idempotencyKey  String        @unique
-  failureCode     String?
-  processedAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  accountId      String
+  account        Account       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  status         PaymentStatus @default(PENDING)
+  amount         Decimal       @db.Decimal(14, 2)
+  currency       String        @default("ZAR")
+  method         String
+  provider       String?
+  providerRef    String?
+  idempotencyKey String        @unique
+  failureCode    String?
+  processedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  @@index([accountId, status, createdAt])
   @@unique([provider, providerRef])
+  @@index([accountId, status, createdAt])
 }
 
 model Document {
-  id          String   @id @default(cuid())
-  tenancyId   String
-  tenancy     Tenancy  @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
-  type        String
-  storageKey  String
-  sha256      String?
-  signedAt    DateTime?
-  createdAt   DateTime @default(now())
+  id         String    @id @default(cuid())
+  tenancyId  String
+  tenancy    Tenancy   @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+  type       String
+  storageKey String
+  sha256     String?
+  signedAt   DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([tenancyId, type])
 }
 
 model User {
-  id             String       @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  email          String
-  name           String
-  passwordHash   String?
-  active         Boolean      @default(true)
-  sessionVersion Int          @default(0)
-  passwordChangedAt DateTime?
-  roleAssignments RoleAssignment[]
-  assignedLeads  Lead[]
-  ledgerEntries  LedgerEntry[]
-  assignedTasks  Task[]       @relation("TaskAssignee")
-  createdTasks   Task[]       @relation("TaskCreator")
-  auditEvents    AuditEvent[]
-  unitNotes      UnitNote[]
+  id                  String               @id @default(cuid())
+  organisationId      String
+  organisation        Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  email               String
+  name                String
+  passwordHash        String?
+  active              Boolean              @default(true)
+  sessionVersion      Int                  @default(0)
+  passwordChangedAt   DateTime?
+  roleAssignments     RoleAssignment[]
+  assignedLeads       Lead[]
+  ledgerEntries       LedgerEntry[]
+  assignedTasks       Task[]               @relation("TaskAssignee")
+  createdTasks        Task[]               @relation("TaskCreator")
+  auditEvents         AuditEvent[]
+  unitNotes           UnitNote[]
   maintenanceRequests MaintenanceRequest[]
-  stockMovements StockMovement[]
-  dailyCloses    DailyClose[]
+  stockMovements      StockMovement[]
+  dailyCloses         DailyClose[]
   passwordResetTokens PasswordResetToken[]
-  reportRuns     ReportRun[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  reportRuns          ReportRun[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 
   @@unique([organisationId, email])
 }
@@ -509,14 +556,14 @@ model RateLimitBucket {
 }
 
 model Role {
-  id             String       @id @default(cuid())
+  id             String           @id @default(cuid())
   organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   name           String
   permissions    String[]
   assignments    RoleAssignment[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@unique([organisationId, name])
 }
@@ -561,28 +608,28 @@ model Task {
 }
 
 model IntegrationConnection {
-  id             String       @id @default(cuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  facilityId     String?
-  facility       Facility?    @relation(fields: [facilityId], references: [id])
-  category       String
-  provider       String
-  status         IntegrationHealthStatus @default(DISCONNECTED)
-  config         Json
-  lastHealthAt   DateTime?
-  lastSuccessAt  DateTime?
-  lastFailureAt  DateTime?
-  consecutiveFailures Int     @default(0)
-  failureCode    String?
-  failureMessage String?
-  webhookInbox   WebhookInbox[]
-  webhookOutbox  WebhookOutbox[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id                  String                  @id @default(cuid())
+  organisationId      String
+  organisation        Organisation            @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId          String?
+  facility            Facility?               @relation(fields: [facilityId], references: [id])
+  category            String
+  provider            String
+  status              IntegrationHealthStatus @default(DISCONNECTED)
+  config              Json
+  lastHealthAt        DateTime?
+  lastSuccessAt       DateTime?
+  lastFailureAt       DateTime?
+  consecutiveFailures Int                     @default(0)
+  failureCode         String?
+  failureMessage      String?
+  webhookInbox        WebhookInbox[]
+  webhookOutbox       WebhookOutbox[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
 
-  @@index([organisationId, category])
   @@unique([organisationId, facilityId, category, provider])
+  @@index([organisationId, category])
 }
 
 model ConfigurationProfile {
@@ -680,40 +727,40 @@ model MaintenanceRequest {
 }
 
 model Product {
-  id             String       @id @default(cuid())
+  id             String          @id @default(cuid())
   organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation    @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   facilityId     String
-  facility       Facility     @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+  facility       Facility        @relation(fields: [facilityId], references: [id], onDelete: Cascade)
   sku            String
   name           String
   category       String
   barcode        String?
-  costPrice      Decimal      @default(0) @db.Decimal(14, 2)
-  sellingPrice   Decimal      @db.Decimal(14, 2)
-  quantityOnHand Int          @default(0)
-  reorderPoint   Int          @default(0)
-  active         Boolean      @default(true)
+  costPrice      Decimal         @default(0) @db.Decimal(14, 2)
+  sellingPrice   Decimal         @db.Decimal(14, 2)
+  quantityOnHand Int             @default(0)
+  reorderPoint   Int             @default(0)
+  active         Boolean         @default(true)
   movements      StockMovement[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@unique([facilityId, sku])
   @@index([organisationId, facilityId, active])
 }
 
 model StockMovement {
-  id             String            @id @default(cuid())
-  productId      String
-  product        Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
-  type           StockMovementType
-  quantity       Int
-  unitCost       Decimal?          @db.Decimal(14, 2)
-  reason         String?
-  reference      String?
-  createdById    String
-  createdBy      User              @relation(fields: [createdById], references: [id])
-  createdAt      DateTime          @default(now())
+  id          String            @id @default(cuid())
+  productId   String
+  product     Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+  type        StockMovementType
+  quantity    Int
+  unitCost    Decimal?          @db.Decimal(14, 2)
+  reason      String?
+  reference   String?
+  createdById String
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  createdAt   DateTime          @default(now())
 
   @@index([productId, createdAt])
 }
@@ -793,19 +840,19 @@ model ReportRun {
 }
 
 model CommunicationTemplate {
-  id             String       @id @default(cuid())
+  id             String             @id @default(cuid())
   organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   key            String
   name           String
   channel        String
   subject        String?
   body           String
   variables      String[]
-  version        Int          @default(1)
-  active         Boolean      @default(true)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  version        Int                @default(1)
+  active         Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
   communications CommunicationLog[]
 
   @@unique([organisationId, key, version])
@@ -813,24 +860,24 @@ model CommunicationTemplate {
 }
 
 model CommunicationLog {
-  id             String        @id @default(cuid())
+  id             String                 @id @default(cuid())
   organisationId String
-  organisation   Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   facilityId     String?
-  facility       Facility?     @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  facility       Facility?              @relation(fields: [facilityId], references: [id], onDelete: SetNull)
   customerId     String?
-  customer       Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customer       Customer?              @relation(fields: [customerId], references: [id], onDelete: SetNull)
   templateId     String?
   template       CommunicationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   channel        String
   recipientHash  String
   provider       String?
   providerRef    String?
-  status         DeliveryStatus @default(PENDING)
-  idempotencyKey String         @unique
+  status         DeliveryStatus         @default(PENDING)
+  idempotencyKey String                 @unique
   failureCode    String?
   failureMessage String?
-  queuedAt       DateTime       @default(now())
+  queuedAt       DateTime               @default(now())
   sentAt         DateTime?
   deliveredAt    DateTime?
   failedAt       DateTime?
@@ -840,36 +887,36 @@ model CommunicationLog {
 }
 
 model WebhookInbox {
-  id             String         @id @default(cuid())
-  organisationId String
-  organisation   Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  facilityId     String?
-  facility       Facility?      @relation(fields: [facilityId], references: [id], onDelete: SetNull)
-  connectionId   String?
-  connection     IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
-  provider       String
-  eventType      String
+  id              String                 @id @default(cuid())
+  organisationId  String
+  organisation    Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  facilityId      String?
+  facility        Facility?              @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  connectionId    String?
+  connection      IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  provider        String
+  eventType       String
   externalEventId String
-  payload        Json
-  headers        Json?
-  status         DeliveryStatus @default(PENDING)
-  attempts       Int            @default(0)
-  nextAttemptAt  DateTime?
-  processedAt    DateTime?
-  failureCode    String?
-  failureMessage String?
-  receivedAt     DateTime       @default(now())
+  payload         Json
+  headers         Json?
+  status          DeliveryStatus         @default(PENDING)
+  attempts        Int                    @default(0)
+  nextAttemptAt   DateTime?
+  processedAt     DateTime?
+  failureCode     String?
+  failureMessage  String?
+  receivedAt      DateTime               @default(now())
 
   @@unique([organisationId, provider, externalEventId])
   @@index([organisationId, status, nextAttemptAt])
 }
 
 model WebhookOutbox {
-  id             String         @id @default(cuid())
+  id             String                 @id @default(cuid())
   organisationId String
-  organisation   Organisation   @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  organisation   Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   facilityId     String?
-  facility       Facility?      @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  facility       Facility?              @relation(fields: [facilityId], references: [id], onDelete: SetNull)
   connectionId   String?
   connection     IntegrationConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
   eventType      String
@@ -877,15 +924,15 @@ model WebhookOutbox {
   aggregateId    String
   destination    String
   payload        Json
-  idempotencyKey String         @unique
-  status         DeliveryStatus @default(PENDING)
-  attempts       Int            @default(0)
+  idempotencyKey String                 @unique
+  status         DeliveryStatus         @default(PENDING)
+  attempts       Int                    @default(0)
   nextAttemptAt  DateTime?
   deliveredAt    DateTime?
   responseStatus Int?
   failureCode    String?
   failureMessage String?
-  createdAt      DateTime       @default(now())
+  createdAt      DateTime               @default(now())
 
   @@index([organisationId, status, nextAttemptAt])
   @@index([aggregateType, aggregateId, createdAt])
@@ -896,7 +943,7 @@ model AuditEvent {
   organisationId String
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   facilityId     String?
-  facility       Facility?     @relation(fields: [facilityId], references: [id], onDelete: SetNull)
+  facility       Facility?    @relation(fields: [facilityId], references: [id], onDelete: SetNull)
   actorId        String?
   actor          User?        @relation(fields: [actorId], references: [id])
   action         String
