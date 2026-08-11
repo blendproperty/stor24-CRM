@@ -29,6 +29,17 @@ export async function POST(request: Request) {
     const scope = await requireScope(); const parsed = mapSchema.safeParse(await jsonBody(request));
     if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     const input = parsed.data; await requirePermission("inventory.manage", input.facilityId); await requireFacility(scope, input.facilityId);
+    const placedUnitIds = input.elements.flatMap((element) => element.unitId ? [element.unitId] : []);
+    const repeatedUnitId = placedUnitIds.find((id, index) => placedUnitIds.indexOf(id) !== index);
+    if (repeatedUnitId) {
+      const unit = await db.unit.findFirst({ where: { id: repeatedUnitId, facilityId: input.facilityId } });
+      return Response.json({ error: { code: "DUPLICATE_UNIT_PLACEMENT", message: `Unit ${unit?.number ?? repeatedUnitId} is placed more than once on this layout.` } }, { status: 409 });
+    }
+    const draftNumbers = input.elements.flatMap((element) => element.unit ? [element.unit.number.trim()] : []);
+    const repeatedDraftNumber = draftNumbers.find((number, index) => draftNumbers.findIndex((item) => item.toLowerCase() === number.toLowerCase()) !== index);
+    if (repeatedDraftNumber) return Response.json({ error: { code: "DUPLICATE_UNIT_NUMBER", message: `Unit number ${repeatedDraftNumber} is used more than once. Every unit in a store needs a unique number.` } }, { status: 409 });
+    const existingNumber = draftNumbers.length ? await db.unit.findFirst({ where: { facilityId: input.facilityId, number: { in: draftNumbers } } }) : null;
+    if (existingNumber) return Response.json({ error: { code: "UNIT_NUMBER_EXISTS", message: `Unit number ${existingNumber.number} already exists at this store. Place the existing unit or choose another number.` } }, { status: 409 });
     const result = await db.$transaction(async (tx) => {
       const map = await tx.facilityMap.upsert({ where: { facilityId_name: { facilityId: input.facilityId, name: input.name } }, update: { width: input.width, height: input.height }, create: { facilityId: input.facilityId, name: input.name, width: input.width, height: input.height } });
       await tx.mapElement.deleteMany({ where: { mapId: map.id } });
