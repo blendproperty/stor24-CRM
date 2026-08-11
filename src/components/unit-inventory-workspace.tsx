@@ -89,6 +89,9 @@ export function UnitInventoryWorkspace({
     () =>
       selectedFacility?.unitTypes.map((type) => ({
         type,
+        assigned: selectedFacility.units.filter(
+          (unit) => unit.unitTypeId === type.id,
+        ).length,
         available: selectedFacility.units.filter(
           (unit) => unit.unitTypeId === type.id && unit.status === "AVAILABLE",
         ).length,
@@ -247,7 +250,8 @@ export function UnitInventoryWorkspace({
           </div>
         }
       />
-      {notice ? <p className="form-success">{notice}</p> : null}
+    {notice ? <p className="form-success">{notice}</p> : null}
+    {error && !dialog ? <p className="form-error">{error}</p> : null}
       <section className="summary-strip">
         {summaries.map(([label, count]) => (
           <div className="summary-cell" key={label}>
@@ -428,7 +432,7 @@ export function UnitInventoryWorkspace({
             Availability
           </h2>
           {grouped.length ? (
-            grouped.map(({ type, available }) => (
+            grouped.map(({ type, available, assigned }) => (
               <div className="inventory-type-row" key={type.id}>
                 <button type="button" onClick={() => setTypeId(type.id)}>
                   <span>
@@ -440,21 +444,14 @@ export function UnitInventoryWorkspace({
                             .filter(Boolean)
                             .join(" × ")}
                     </small>
+                    <small>{assigned} unit{assigned === 1 ? "" : "s"} assigned</small>
                   </span>
                   <b>{available}</b>
                 </button>
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={`Edit ${type.name} unit type`}
-                  title={`Edit ${type.name}`}
-                  onClick={() => {
-                    setDialog({ kind: "type", unitType: type });
-                    setError("");
-                  }}
-                >
-                  <Pencil size={15} />
-                </button>
+                <div className="inventory-type-actions">
+                  <button type="button" className="text-button" onClick={() => { setDialog({ kind: "type", unitType: type }); setError(""); }}><Pencil size={14}/>Edit</button>
+                  <button type="button" className="text-button danger" disabled={busy} title={assigned > 0 ? `${assigned} unit${assigned === 1 ? " is" : "s are"} assigned to this type. Reassign those units before deleting it.` : `Delete ${type.name}`} onClick={() => void deleteUnitType(type)}><Trash2 size={14}/>Delete</button>
+                </div>
               </div>
             ))
           ) : (

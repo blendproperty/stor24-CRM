@@ -2058,7 +2058,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .inventory-toolbar fieldset legend { padding: 0 4px; color: var(--muted); font-size: 10px; font-weight: 750; }
 .inventory-toolbar fieldset label { display: flex; gap: 5px; align-items: center; font-size: 11px; font-weight: 700; }
 .inventory-toolbar input[type="radio"] { appearance: auto; width: 14px; min-height: 14px; height: 14px; margin: 0; padding: 0; accent-color: var(--orange); }
-.inventory-layout { display: grid; grid-template-columns: minmax(0,1fr) 250px; gap: 16px; align-items: start; }
+.inventory-layout { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 16px; align-items: start; }
 .inventory-breakdown { overflow: hidden; }
 .inventory-breakdown h2 { display: flex; align-items: center; gap: 8px; margin: 0; padding: 14px; border-bottom: 1px solid var(--border); font-size: 15px; }
 .inventory-breakdown > button { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 11px 14px; border: 0; border-bottom: 1px solid var(--border); background: white; text-align: left; }
@@ -2072,7 +2072,9 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .inventory-type-row > button:first-child span { display: grid; gap: 3px; }
 .inventory-type-row > button:first-child small { color: var(--muted); }
 .inventory-type-row > button:first-child b { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 50%; background: #eef8f1; color: var(--green); }
-.inventory-type-row > .icon-button { margin-right: 10px; }
+.inventory-type-actions { display: flex; gap: 5px; padding-right: 10px; }
+.inventory-type-actions .text-button { display: inline-flex; align-items: center; gap: 4px; padding: 6px; font-size: 10px; }
+.inventory-type-actions .text-button:disabled { color: #a7ada9; cursor: not-allowed; opacity: .7; }
 .inventory-modal { width: min(720px,calc(100vw - 30px)); }
 .inventory-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-top: 18px; }
 .inventory-form-wide { grid-column: 1 / -1; }
