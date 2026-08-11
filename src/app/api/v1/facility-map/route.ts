@@ -11,7 +11,7 @@ const elementSchema = z.object({
   rotation: z.number().int().min(0).max(359).default(0), label: z.string().trim().max(120).optional(), unitId: z.string().optional(),
   unit: z.object({ unitTypeId: z.string().min(1), number: z.string().trim().min(1).max(40), floor: z.string().trim().max(40).optional(), zone: z.string().trim().max(40).optional(), monthlyRate: z.coerce.number().min(0), taxRate: z.coerce.number().min(0).max(1).default(.15) }).optional(),
 });
-const mapSchema = z.object({ facilityId: z.string().min(1), name: z.string().trim().min(1).max(80), width: z.number().int().min(400).max(5000), height: z.number().int().min(300).max(5000), elements: z.array(elementSchema).max(1500) });
+const mapSchema = z.object({ facilityId: z.string().min(1), name: z.string().trim().min(1).max(80), width: z.number().int().min(400).max(5000), height: z.number().int().min(300).max(5000), backgroundUrl: z.string().trim().max(500).nullable().optional(), elements: z.array(elementSchema).max(1500) });
 
 export async function GET(request: Request) {
   try {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const existingNumber = draftNumbers.length ? await db.unit.findFirst({ where: { facilityId: input.facilityId, number: { in: draftNumbers } } }) : null;
     if (existingNumber) return Response.json({ error: { code: "UNIT_NUMBER_EXISTS", message: `Unit number ${existingNumber.number} already exists at this store. Place the existing unit or choose another number.` } }, { status: 409 });
     const result = await db.$transaction(async (tx) => {
-      const map = await tx.facilityMap.upsert({ where: { facilityId_name: { facilityId: input.facilityId, name: input.name } }, update: { width: input.width, height: input.height }, create: { facilityId: input.facilityId, name: input.name, width: input.width, height: input.height } });
+      const map = await tx.facilityMap.upsert({ where: { facilityId_name: { facilityId: input.facilityId, name: input.name } }, update: { width: input.width, height: input.height, backgroundUrl: input.backgroundUrl }, create: { facilityId: input.facilityId, name: input.name, width: input.width, height: input.height, backgroundUrl: input.backgroundUrl } });
       await tx.mapElement.deleteMany({ where: { mapId: map.id } });
       for (const [sortOrder, element] of input.elements.entries()) {
         let unitId = element.unitId;
