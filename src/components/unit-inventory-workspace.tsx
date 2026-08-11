@@ -139,8 +139,7 @@ export function UnitInventoryWorkspace({
           widthMetres: width || undefined,
           lengthMetres: length || undefined,
           areaSqMetres:
-            form.get("areaSqMetres") ||
-            (width && length ? width * length : undefined),
+            width > 0 && length > 0 ? Math.round(width * length) : undefined,
           features: String(form.get("features") ?? "")
             .split(",")
             .map((item) => item.trim())
@@ -500,6 +499,12 @@ function InventoryDialog({
   const [facilityId, setFacilityId] = useState(
     editingUnit?.facilityId ?? editingType?.facilityId ?? defaultFacilityId,
   );
+  const [typeWidth, setTypeWidth] = useState(editingType?.widthMetres ?? "");
+  const [typeLength, setTypeLength] = useState(editingType?.lengthMetres ?? "");
+  const calculatedArea =
+    Number(typeWidth) > 0 && Number(typeLength) > 0
+      ? String(Math.round(Number(typeWidth) * Number(typeLength)))
+      : "";
   const types =
     facilities.find((facility) => facility.id === facilityId)?.unitTypes ?? [];
   return (
@@ -546,27 +551,41 @@ function InventoryDialog({
                 value={editingType?.name}
                 required
               />
-              <Field
-                name="widthMetres"
-                label="Width (metres)"
-                type="number"
-                step=".01"
-                value={editingType?.widthMetres}
-              />
-              <Field
-                name="lengthMetres"
-                label="Length (metres)"
-                type="number"
-                step=".01"
-                value={editingType?.lengthMetres}
-              />
-              <Field
-                name="areaSqMetres"
-                label="Area (m²)"
-                type="number"
-                step=".01"
-                value={editingType?.areaSqMetres}
-              />
+              <label>
+                Width (metres)
+                <input
+                  name="widthMetres"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={typeWidth}
+                  onChange={(event) => setTypeWidth(event.target.value)}
+                />
+              </label>
+              <label>
+                Length (metres)
+                <input
+                  name="lengthMetres"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={typeLength}
+                  onChange={(event) => setTypeLength(event.target.value)}
+                />
+              </label>
+              <label className="inventory-calculated-field">
+                Area (m²)
+                <input
+                  name="areaSqMetres"
+                  type="number"
+                  value={calculatedArea}
+                  readOnly
+                  tabIndex={-1}
+                />
+                <small>Calculated from width × length and rounded to the nearest whole m².</small>
+              </label>
               <Field
                 name="features"
                 label="Features (comma separated)"
