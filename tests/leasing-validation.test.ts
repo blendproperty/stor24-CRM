@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountPaymentSchema, customerSchema, moveInSchema, noticeSchema, transferSchema } from "../src/lib/validators";
+import { accountPaymentSchema, customerSchema, moveInSchema, noticeSchema, transferSchema, unitTypeSchema } from "../src/lib/validators";
+
+test("unit types accept single-character operational names", () => {
+  assert.equal(unitTypeSchema.safeParse({ facilityId: "facility-1", name: "A", widthMetres: 4.838, lengthMetres: 7.233, areaSqMetres: 35 }).success, true);
+});
 
 test("customer requires a person or company name", () => {
   assert.equal(customerSchema.safeParse({ type: "INDIVIDUAL", email: "test@example.test" }).success, false);

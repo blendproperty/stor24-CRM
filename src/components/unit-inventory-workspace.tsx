@@ -170,10 +170,10 @@ export function UnitInventoryWorkspace({
     setBusy(false);
     if (!response.ok) {
       setError(
-        response.status === 409
-          ? "This change conflicts with an existing unit, reservation or occupancy."
-          : (result.error?.message ??
-              "The inventory record could not be saved."),
+        result.error?.message ??
+          (response.status === 409
+            ? "This change conflicts with an existing inventory record."
+            : "The inventory record could not be saved."),
       );
       return;
     }
@@ -190,8 +190,8 @@ export function UnitInventoryWorkspace({
     );
   }
 
-  async function deleteUnitType(unitType: UnitType) {
-    if (!window.confirm(`Delete the ${unitType.name} unit type?`)) return;
+  async function deleteUnitType(unitType: UnitType, confirmed = false) {
+    if (!confirmed && !window.confirm(`Delete the ${unitType.name} unit type?`)) return;
     setBusy(true);
     setError("");
     setNotice("");
@@ -203,9 +203,7 @@ export function UnitInventoryWorkspace({
     setBusy(false);
     if (!response.ok) {
       setError(
-        response.status === 409
-          ? "This unit type cannot be deleted while units are assigned to it."
-          : (result.error?.message ?? "The unit type could not be deleted."),
+        result.error?.message ?? "The unit type could not be deleted.",
       );
       return;
     }
@@ -491,7 +489,7 @@ function InventoryDialog({
   error: string;
   close: () => void;
   submit: (form: FormData) => void;
-  deleteUnitType: (unitType: UnitType) => void;
+  deleteUnitType: (unitType: UnitType, confirmed?: boolean) => void;
 }) {
   const isType = state.kind === "type";
   const editingUnit = state.kind === "unit" ? state.unit : undefined;
@@ -501,6 +499,7 @@ function InventoryDialog({
   );
   const [typeWidth, setTypeWidth] = useState(editingType?.widthMetres ?? "");
   const [typeLength, setTypeLength] = useState(editingType?.lengthMetres ?? "");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const calculatedArea =
     Number(typeWidth) > 0 && Number(typeLength) > 0
       ? String(Math.round(Number(typeWidth) * Number(typeLength)))
@@ -527,6 +526,7 @@ function InventoryDialog({
               ? `Edit unit ${editingUnit.number}`
               : "Add unit"}
         </h2>
+        {error ? <p className="form-error inventory-dialog-error">{error}</p> : null}
         <form action={submit} className="inventory-form">
           <label>
             Store
@@ -667,18 +667,15 @@ function InventoryDialog({
               ) : null}
             </>
           )}
-          {error ? (
-            <p className="form-error inventory-form-wide">{error}</p>
-          ) : null}
           <div className="form-actions inventory-form-wide">
             {editingType ? (
               <button
                 type="button"
                 className="button button-danger"
-                onClick={() => deleteUnitType(editingType)}
+                onClick={() => confirmingDelete ? deleteUnitType(editingType, true) : setConfirmingDelete(true)}
                 disabled={busy}
               >
-                <Trash2 size={15} /> Delete type
+                <Trash2 size={15} /> {confirmingDelete ? `Confirm delete ${editingType.name}` : "Delete type"}
               </button>
             ) : null}
             <button

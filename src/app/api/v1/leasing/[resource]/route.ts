@@ -29,6 +29,12 @@ export async function POST(request: Request, context: { params: Promise<{ resour
     if (["facilities", "unit-types", "units"].includes(resource)) await requirePermission("inventory.manage");
     const parsed = schemas[resource].safeParse(await jsonBody(request)); if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     const scope = await requireScope();
+    if (resource === "unit-types") {
+      const unitTypeData = parsed.data as { facilityId: string; name: string };
+      if (await db.unitType.findFirst({ where: { facilityId: unitTypeData.facilityId, name: { equals: unitTypeData.name, mode: "insensitive" } } })) {
+        return Response.json({ error: { code: "UNIT_TYPE_NAME_EXISTS", message: `A unit type named “${unitTypeData.name}” already exists at this store.` } }, { status: 409 });
+      }
+    }
     const creators = { facilities: createFacility, "unit-types": createUnitType, units: createUnit, customers: createCustomer, leads: createLead, reservations: createReservation } as const;
     const data = await (creators[resource] as (s: typeof scope, d: never) => Promise<unknown>)(scope, parsed.data as never);
     return Response.json({ data }, { status: 201 });
@@ -48,6 +54,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
     if (resource === "facilities") { if (!scope.unrestrictedFacilities) throw new Error("FORBIDDEN"); const current = await db.facility.findFirst({ where: { id: body.id, ...facilityWhere(scope) } }); if (!current) throw new Error("NOT_FOUND"); entity = await db.facility.update({ where: { id: current.id }, data }); }
     else if (resource === "customers") { const current = await db.customer.findFirst({ where: { id: body.id, organisationId: scope.organisationId } }); if (!current) throw new Error("NOT_FOUND"); entity = await db.customer.update({ where: { id: current.id }, data }); }
     else { const model = resource === "unit-types" ? db.unitType : resource === "units" ? db.unit : resource === "leads" ? db.lead : db.reservation; const current = await (model as typeof db.unit).findFirst({ where: { id: body.id }, include: { facility: true } } as never) as { id: string; facilityId: string } | null; if (!current) throw new Error("NOT_FOUND"); await requireFacility(scope, current.facilityId);
+      if (resource === "unit-types") {
+        const unitTypeData = parsed.data as { name?: string };
+        if (unitTypeData.name && await db.unitType.findFirst({ where: { facilityId: current.facilityId, name: { equals: unitTypeData.name, mode: "insensitive" }, id: { not: current.id } } })) {
+          return Response.json({ error: { code: "UNIT_TYPE_NAME_EXISTS", message: `A unit type named “${unitTypeData.name}” already exists at this store.` } }, { status: 409 });
+        }
+      }
       if (resource === "units") {
         const unitData = parsed.data as { unitTypeId?: string; status?: string };
         if (unitData.status && ["HELD", "RESERVED", "OCCUPIED"].includes(unitData.status)) throw new Error("CONFLICT");
@@ -70,7 +82,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ reso
     const id = new URL(request.url).searchParams.get("id"); if (!id) throw new Error("NOT_FOUND"); const scope = await requireScope();
     if (resource === "customers") { const entity = await db.customer.findFirst({ where: { id, organisationId: scope.organisationId }, include: { tenancies: true, reservations: true } }); if (!entity) throw new Error("NOT_FOUND"); if (entity.tenancies.length || entity.reservations.length) throw new Error("CONFLICT"); await db.customer.delete({ where: { id } }); }
     else if (resource === "facilities") { if (!scope.unrestrictedFacilities) throw new Error("FORBIDDEN"); const entity = await db.facility.findFirst({ where: { id, ...facilityWhere(scope) } }); if (!entity) throw new Error("NOT_FOUND"); await db.facility.update({ where: { id }, data: { active: false } }); }
-    else { const model = resource === "unit-types" ? db.unitType : resource === "units" ? db.unit : resource === "leads" ? db.lead : db.reservation; const entity = await (model as typeof db.unit).findFirst({ where: { id } }) as { facilityId: string } | null; if (!entity) throw new Error("NOT_FOUND"); await requireFacility(scope, entity.facilityId); if (resource === "units") await db.unit.update({ where: { id }, data: { status: "UNAVAILABLE" } }); else if (resource === "reservations") { await db.reservation.update({ where: { id }, data: { status: "CANCELLED" } }); } else { if (resource === "unit-types" && await db.unit.count({ where: { unitTypeId: id } })) throw new Error("CONFLICT"); await (model as typeof db.unit).delete({ where: { id } }); } }
+    else { const model = resource === "unit-types" ? db.unitType : resource === "units" ? db.unit : resource === "leads" ? db.lead : db.reservation; const entity = await (model as typeof db.unit).findFirst({ where: { id } }) as { facilityId: string } | null; if (!entity) throw new Error("NOT_FOUND"); await requireFacility(scope, entity.facilityId); if (resource === "units") await db.unit.update({ where: { id }, data: { status: "UNAVAILABLE" } }); else if (resource === "reservations") { await db.reservation.update({ where: { id }, data: { status: "CANCELLED" } }); } else { if (resource === "unit-types") { const assigned = await db.unit.count({ where: { unitTypeId: id } }); if (assigned) return Response.json({ error: { code: "UNIT_TYPE_IN_USE", message: `This unit type is used by ${assigned} unit${assigned === 1 ? "" : "s"}. Reassign those units before deleting it.` } }, { status: 409 }); } await (model as typeof db.unit).delete({ where: { id } }); } }
     await db.auditEvent.create({ data: { organisationId: scope.organisationId, actorId: scope.userId, action: `${resource}.deleted`, entityType: resource, entityId: id } }); return new Response(null, { status: 204 });
   } catch (error) { return apiError(error); }
 }
