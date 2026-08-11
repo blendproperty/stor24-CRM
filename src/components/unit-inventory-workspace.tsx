@@ -207,6 +207,7 @@ export function UnitInventoryWorkspace({
       setError(
         result.error?.message ?? "The unit type could not be deleted.",
       );
+      if (result.error?.canForceDelete) setDialog({ kind: "type", unitType });
       return;
     }
     setForceDeleteCount(0);
@@ -214,6 +215,25 @@ export function UnitInventoryWorkspace({
     await refresh();
     setDialog(null);
     setNotice("Unit type deleted.");
+  }
+
+  async function deleteUnit(unit: Unit) {
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const response = await fetch(
+      `/api/v1/leasing/units?id=${encodeURIComponent(unit.id)}&force=true`,
+      { method: "DELETE" },
+    );
+    const result = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(result.error?.message ?? "The unit could not be permanently deleted.");
+      return;
+    }
+    await refresh();
+    setDialog(null);
+    setNotice(`Unit ${unit.number} permanently deleted.`);
   }
 
   return (
@@ -469,6 +489,7 @@ export function UnitInventoryWorkspace({
           close={() => setDialog(null)}
           submit={submit}
           deleteUnitType={deleteUnitType}
+          deleteUnit={deleteUnit}
           forceDeleteCount={forceDeleteCount}
         />
       ) : null}
@@ -485,6 +506,7 @@ function InventoryDialog({
   close,
   submit,
   deleteUnitType,
+  deleteUnit,
   forceDeleteCount,
 }: {
   state: DialogState;
@@ -495,6 +517,7 @@ function InventoryDialog({
   close: () => void;
   submit: (form: FormData) => void;
   deleteUnitType: (unitType: UnitType, confirmed?: boolean, force?: boolean) => void;
+  deleteUnit: (unit: Unit) => void;
   forceDeleteCount: number;
 }) {
   const isType = state.kind === "type";
@@ -692,6 +715,16 @@ function InventoryDialog({
                 disabled={busy}
               >
                 <Trash2 size={15} /> Delete type and {forceDeleteCount} unused unit{forceDeleteCount === 1 ? "" : "s"}
+              </button>
+            ) : null}
+            {editingUnit ? (
+              <button
+                type="button"
+                className="button button-danger"
+                onClick={() => confirmingDelete ? deleteUnit(editingUnit) : setConfirmingDelete(true)}
+                disabled={busy}
+              >
+                <Trash2 size={15} /> {confirmingDelete ? `Confirm permanent deletion of unit ${editingUnit.number}` : "Delete unit permanently"}
               </button>
             ) : null}
             <button
