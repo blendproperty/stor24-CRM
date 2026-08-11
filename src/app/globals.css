@@ -2087,7 +2087,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-mode-switch button.active { background: white; color: var(--ink); box-shadow: 0 1px 5px rgba(0,0,0,.1); }
 .map-save-state { margin-left: auto; padding: 8px 11px; border-radius: 999px; background: #f4f1e8; color: var(--muted); font-size: 11px; font-weight: 800; }
 .map-editor-shell { display: grid; grid-template-columns: 150px minmax(0,1fr) 230px; gap: 14px; min-height: 650px; align-items: start; }
-.map-editor-shell.map-live-shell { grid-template-columns: 180px minmax(0,1fr); }
+.map-editor-shell.map-live-shell { grid-template-columns: 180px minmax(0,1fr) 230px; }
 .map-toolbox, .map-properties { position: sticky; top: 15px; overflow: hidden; }
 .map-toolbox h2, .map-properties h2 { margin: 0; padding: 13px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .map-toolbox > button, .map-tool-link { display: flex; align-items: center; gap: 9px; width: 100%; padding: 11px 13px; border: 0; border-bottom: 1px solid var(--border); background: white; color: var(--ink); font-size: 12px; font-weight: 750; text-align: left; }
@@ -2131,11 +2131,20 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-legend { overflow: hidden; }
 .map-legend h2 { margin: 0; padding: 13px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .map-legend > div { display: flex; align-items: center; gap: 9px; padding: 10px 13px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 750; }
+.map-legend > div strong { margin-left: auto; font-size: 13px; }
+.map-legend > small { display: block; padding: 10px 13px; color: var(--muted); font-size: 9px; line-height: 1.45; }
 .map-legend i { width: 17px; height: 17px; border: 2px solid; border-radius: 4px; }
 .map-legend-available { border-color: #159455 !important; background: #e7f8ef; }
 .map-legend-reserved { border-color: #7c3aed !important; background: #f0eafe; }
 .map-legend-occupied { border-color: #dc2626 !important; background: #feecec; }
 .map-legend-service { border-color: #d97706 !important; background: #fff3dd; }
+.map-live-details { position: sticky; top: 15px; overflow: hidden; }
+.map-live-details h2 { margin: 0; padding: 13px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.map-live-details > div:not(.empty-cell) { display: grid; gap: 3px; padding: 10px 13px; border-bottom: 1px solid var(--border); }
+.map-live-details > div span { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.map-live-details > div strong { font-size: 12px; text-transform: capitalize; }
+.map-live-details > .button { width: calc(100% - 26px); margin: 12px 13px 0; justify-content: center; }
+.map-live-details { padding-bottom: 13px; }
 .reservation-toolbar { display: grid; grid-template-columns: repeat(2,minmax(170px,240px)) minmax(240px,1fr); gap: 12px; align-items: end; padding: 14px; }
 .reservation-toolbar > label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
 .reservation-toolbar select, .reservation-toolbar input { width: 100%; min-height: 41px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); }
