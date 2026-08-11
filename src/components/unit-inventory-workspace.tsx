@@ -60,6 +60,7 @@ export function UnitInventoryWorkspace({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [forceDeleteCount, setForceDeleteCount] = useState(0);
   const selectedFacility = facilities.find(
     (facility) => facility.id === facilityId,
   );
@@ -190,23 +191,25 @@ export function UnitInventoryWorkspace({
     );
   }
 
-  async function deleteUnitType(unitType: UnitType, confirmed = false) {
+  async function deleteUnitType(unitType: UnitType, confirmed = false, force = false) {
     if (!confirmed && !window.confirm(`Delete the ${unitType.name} unit type?`)) return;
     setBusy(true);
     setError("");
     setNotice("");
     const response = await fetch(
-      `/api/v1/leasing/unit-types?id=${encodeURIComponent(unitType.id)}`,
+      `/api/v1/leasing/unit-types?id=${encodeURIComponent(unitType.id)}${force ? "&force=true" : ""}`,
       { method: "DELETE" },
     );
     const result = await response.json().catch(() => ({}));
     setBusy(false);
     if (!response.ok) {
+      setForceDeleteCount(result.error?.canForceDelete ? Number(result.error.assigned || 0) : 0);
       setError(
         result.error?.message ?? "The unit type could not be deleted.",
       );
       return;
     }
+    setForceDeleteCount(0);
     if (typeId === unitType.id) setTypeId("");
     await refresh();
     setDialog(null);
@@ -466,6 +469,7 @@ export function UnitInventoryWorkspace({
           close={() => setDialog(null)}
           submit={submit}
           deleteUnitType={deleteUnitType}
+          forceDeleteCount={forceDeleteCount}
         />
       ) : null}
     </div>
@@ -481,6 +485,7 @@ function InventoryDialog({
   close,
   submit,
   deleteUnitType,
+  forceDeleteCount,
 }: {
   state: DialogState;
   facilities: Facility[];
@@ -489,7 +494,8 @@ function InventoryDialog({
   error: string;
   close: () => void;
   submit: (form: FormData) => void;
-  deleteUnitType: (unitType: UnitType, confirmed?: boolean) => void;
+  deleteUnitType: (unitType: UnitType, confirmed?: boolean, force?: boolean) => void;
+  forceDeleteCount: number;
 }) {
   const isType = state.kind === "type";
   const editingUnit = state.kind === "unit" ? state.unit : undefined;
@@ -676,6 +682,16 @@ function InventoryDialog({
                 disabled={busy}
               >
                 <Trash2 size={15} /> {confirmingDelete ? `Confirm delete ${editingType.name}` : "Delete type"}
+              </button>
+            ) : null}
+            {editingType && forceDeleteCount > 0 ? (
+              <button
+                type="button"
+                className="button button-danger"
+                onClick={() => deleteUnitType(editingType, true, true)}
+                disabled={busy}
+              >
+                <Trash2 size={15} /> Delete type and {forceDeleteCount} unused unit{forceDeleteCount === 1 ? "" : "s"}
               </button>
             ) : null}
             <button
