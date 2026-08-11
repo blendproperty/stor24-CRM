@@ -2039,6 +2039,10 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .customer-form fieldset { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
 .customer-form legend { padding: 0 6px; font-weight: 850; }
 .customer-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.customer-form input:not([type="checkbox"]), .customer-form select, .customer-form textarea { width: 100%; min-height: 42px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px; background: white; color: var(--ink); font: inherit; }
+.customer-form textarea { resize: vertical; }
+.customer-form input:not([type="checkbox"]):focus, .customer-form select:focus, .customer-form textarea:focus { outline: 2px solid color-mix(in srgb, var(--orange) 30%, transparent); border-color: var(--orange); }
+.customer-form input[type="checkbox"] { appearance: auto; flex: 0 0 15px; width: 15px; height: 15px; margin: 0; accent-color: var(--orange); }
 .customer-form .check-label { display: flex; }
 .customer-form-wide { grid-column: 1 / -1; }
 .customer-notes-input { grid-column: 1 / -1; }
