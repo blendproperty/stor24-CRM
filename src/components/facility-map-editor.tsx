@@ -16,13 +16,14 @@ type CanvasElement = { id: string; unitId?: string; type: ElementType; x: number
 
 const snap = (value: number) => Math.max(0, Math.round(value / 10) * 10);
 const freshId = () => `draft-${crypto.randomUUID()}`;
+const defaultCanvasSize = { width: 1800, height: 1100 };
 const elementDefaults: Record<Exclude<ElementType, "UNIT">, Pick<CanvasElement, "width" | "height" | "label">> = {
   ZONE: { width: 260, height: 180, label: "Zone" }, WALL: { width: 240, height: 14, label: "Wall" }, DOOR: { width: 70, height: 18, label: "Door" }, LABEL: { width: 180, height: 44, label: "Label" },
 };
 
 export function FacilityMapEditor() {
   const [facilities, setFacilities] = useState<Facility[]>([]); const [facilityId, setFacilityId] = useState(""); const [floorName, setFloorName] = useState("");
-  const [elements, setElements] = useState<CanvasElement[]>([]); const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 720 }); const [selectedId, setSelectedId] = useState("");
+  const [elements, setElements] = useState<CanvasElement[]>([]); const [canvasSize, setCanvasSize] = useState(defaultCanvasSize); const [selectedId, setSelectedId] = useState("");
   const [zoom, setZoom] = useState(.8); const [unitDialog, setUnitDialog] = useState(false); const [mode, setMode] = useState<"build" | "live">("build");
   const [expanded, setExpanded] = useState(false);
   const dragRef = useRef<{ id: string; startX: number; startY: number; x: number; y: number } | null>(null); const resizeRef = useRef<{ id: string; startX: number; startY: number; width: number; height: number } | null>(null);
@@ -43,7 +44,7 @@ export function FacilityMapEditor() {
   useEffect(() => { const handler = (event: KeyboardEvent) => { if (!selectedId || mode !== "build" || ["INPUT", "SELECT", "TEXTAREA"].includes((event.target as HTMLElement).tagName)) return; const directions: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }; const direction = directions[event.key]; if (!direction) return; event.preventDefault(); const step = event.shiftKey ? 1 : 10; setElements((items) => items.map((item) => item.id === selectedId ? { ...item, x: Math.max(0, item.x + Math.sign(direction[0]) * step), y: Math.max(0, item.y + Math.sign(direction[1]) * step) } : item)); setDirty(true); }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler); }, [selectedId, mode]);
 
   function hydrate(map?: MapRecord, preserveSelection = false) {
-    setCanvasSize(map ? { width: map.width, height: map.height } : { width: 1200, height: 720 });
+    setCanvasSize(map ? { width: Math.max(map.width, defaultCanvasSize.width), height: Math.max(map.height, defaultCanvasSize.height) } : defaultCanvasSize);
     setElements(map?.elements.map((element) => ({ id: element.id, unitId: element.unitId ?? undefined, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label || element.unit?.number || element.type, status: element.unit?.status, unitDetails: element.unit ?? undefined })) ?? []); if (!preserveSelection) setSelectedId(""); setDirty(false);
   }
   function selectFacility(nextId: string) { if (dirty && !confirm("Discard unsaved layout changes?")) return; const next = facilities.find((item) => item.id === nextId); const nextFloor = next?.maps[0]?.name || "Ground floor"; setFacilityId(nextId); setFloorName(nextFloor); hydrate(next?.maps[0]); }
