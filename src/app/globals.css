@@ -2066,6 +2066,13 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .inventory-breakdown > button span { display: grid; gap: 3px; }
 .inventory-breakdown > button small { color: var(--muted); }
 .inventory-breakdown > button b { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 50%; background: #eef8f1; color: var(--green); }
+.inventory-type-row { display: grid; grid-template-columns: 1fr auto; align-items: center; border-bottom: 1px solid var(--border); }
+.inventory-type-row > button:first-child { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 11px 14px; border: 0; background: white; text-align: left; }
+.inventory-type-row > button:first-child:hover { background: #fff8f3; }
+.inventory-type-row > button:first-child span { display: grid; gap: 3px; }
+.inventory-type-row > button:first-child small { color: var(--muted); }
+.inventory-type-row > button:first-child b { display: grid; place-items: center; min-width: 28px; height: 28px; border-radius: 50%; background: #eef8f1; color: var(--green); }
+.inventory-type-row > .icon-button { margin-right: 10px; }
 .inventory-modal { width: min(720px,calc(100vw - 30px)); }
 .inventory-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-top: 18px; }
 .inventory-form-wide { grid-column: 1 / -1; }
