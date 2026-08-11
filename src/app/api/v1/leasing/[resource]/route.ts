@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { createCustomer, createFacility, createLead, createReservation, createUnit, createUnitType, listLeasing } from "@/lib/leasing-service";
 import { facilityWhere, requireFacility, requireScope } from "@/lib/scope";
 import { customerSchema, facilitySchema, leadSchema, reservationSchema, unitSchema, unitTypeSchema } from "@/lib/validators";
+import { requirePermission } from "@/lib/auth-guards";
+import { sameOrigin } from "@/lib/request-security";
 
 const schemas = { facilities: facilitySchema, "unit-types": unitTypeSchema, units: unitSchema, customers: customerSchema, leads: leadSchema, reservations: reservationSchema } as const;
 type Resource = keyof typeof schemas;
@@ -11,6 +13,7 @@ const isResource = (value: string): value is Resource => value in schemas;
 export async function GET(_: Request, context: { params: Promise<{ resource: string }> }) {
   try {
     const { resource } = await context.params; if (!isResource(resource)) throw new Error("NOT_FOUND");
+    if (resource === "customers") await requirePermission("operations.view");
     const data = await listLeasing(await requireScope());
     const values = resource === "unit-types" ? data.facilities.flatMap((f) => f.unitTypes) : resource === "units" ? data.facilities.flatMap((f) => f.units) : data[resource];
     return Response.json({ data: values, meta: { count: values.length } });
@@ -19,7 +22,9 @@ export async function GET(_: Request, context: { params: Promise<{ resource: str
 
 export async function POST(request: Request, context: { params: Promise<{ resource: string }> }) {
   try {
+    if (!sameOrigin(request)) return Response.json({ error: { message: "Request rejected." } }, { status: 403 });
     const { resource } = await context.params; if (!isResource(resource)) throw new Error("NOT_FOUND");
+    if (resource === "customers") await requirePermission("operations.manage");
     const parsed = schemas[resource].safeParse(await jsonBody(request)); if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     const scope = await requireScope();
     const creators = { facilities: createFacility, "unit-types": createUnitType, units: createUnit, customers: createCustomer, leads: createLead, reservations: createReservation } as const;
@@ -30,7 +35,9 @@ export async function POST(request: Request, context: { params: Promise<{ resour
 
 export async function PATCH(request: Request, context: { params: Promise<{ resource: string }> }) {
   try {
+    if (!sameOrigin(request)) return Response.json({ error: { message: "Request rejected." } }, { status: 403 });
     const { resource } = await context.params; if (!isResource(resource)) throw new Error("NOT_FOUND");
+    if (resource === "customers") await requirePermission("operations.manage");
     const body = await jsonBody(request) as { id?: string; data?: unknown }; if (!body.id) throw new Error("NOT_FOUND");
     const parsed = schemas[resource].partial().safeParse(body.data); if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     const scope = await requireScope(); const data = parsed.data as never;
@@ -45,7 +52,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ resou
 
 export async function DELETE(request: Request, context: { params: Promise<{ resource: string }> }) {
   try {
+    if (!sameOrigin(request)) return Response.json({ error: { message: "Request rejected." } }, { status: 403 });
     const { resource } = await context.params; if (!isResource(resource)) throw new Error("NOT_FOUND");
+    if (resource === "customers") await requirePermission("operations.manage");
     const id = new URL(request.url).searchParams.get("id"); if (!id) throw new Error("NOT_FOUND"); const scope = await requireScope();
     if (resource === "customers") { const entity = await db.customer.findFirst({ where: { id, organisationId: scope.organisationId }, include: { tenancies: true, reservations: true } }); if (!entity) throw new Error("NOT_FOUND"); if (entity.tenancies.length || entity.reservations.length) throw new Error("CONFLICT"); await db.customer.delete({ where: { id } }); }
     else if (resource === "facilities") { if (!scope.unrestrictedFacilities) throw new Error("FORBIDDEN"); const entity = await db.facility.findFirst({ where: { id, ...facilityWhere(scope) } }); if (!entity) throw new Error("NOT_FOUND"); await db.facility.update({ where: { id }, data: { active: false } }); }

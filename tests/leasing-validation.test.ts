@@ -17,6 +17,11 @@ test("move-in rejects negative money and transfer requires identifiers", () => {
   assert.equal(transferSchema.safeParse({ tenancyId: "", toUnitId: "unit-2", effectiveAt: "2026-08-04" }).success, false);
 });
 
+test("customer operations accept South African contacts and recorded consent", () => {
+  const result = customerSchema.safeParse({ type: "INDIVIDUAL", firstName: "Test", lastName: "Tenant", identityRef: "ID-REDACTED", billingAddress: { city: "Pretoria", province: "Gauteng", country: "South Africa" }, alternateContact: { name: "Alternate", phone: "+27 10 000 0000" }, communicationConsent: { email: true, sms: false, phone: true, recordedAt: "2026-08-11T08:00:00.000Z" } });
+  assert.equal(result.success, true);
+});
+
 test("account payments require a positive amount and supported tender", () => {
   assert.equal(accountPaymentSchema.safeParse({ accountId: "account-1", amount: 250, method: "EFT", receivedAt: "2026-08-07" }).success, true);
   assert.equal(accountPaymentSchema.safeParse({ accountId: "account-1", amount: 0, method: "EFT", receivedAt: "2026-08-07" }).success, false);

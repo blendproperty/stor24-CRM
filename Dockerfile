@@ -10,6 +10,11 @@ COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 RUN npm run db:generate && npm run build
 
+FROM dependencies AS migrator
+COPY prisma ./prisma
+COPY prisma.config.ts ./
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production

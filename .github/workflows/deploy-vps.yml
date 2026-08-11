@@ -51,7 +51,10 @@ jobs:
             "cd /opt/stor24-crm && \
              git fetch origin '$DEPLOY_REF' && \
              git checkout --detach FETCH_HEAD && \
-             IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml build app && \
+             mkdir -p /opt/backups && \
+             docker exec stor24-crm-postgres-1 pg_dump -U stor24 -d stor24_crm | gzip > /opt/backups/stor24-crm-predeploy-\$(date +%Y%m%d-%H%M%S).sql.gz && \
+             IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml build app migrate && \
+             IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml run --rm migrate && \
              IMAGE_TAG=\$(git rev-parse --short HEAD) docker compose --env-file .env -f compose.prod.yml up -d --no-deps app && \
              container=\$(docker compose --env-file .env -f compose.prod.yml ps -q app) && \
              for attempt in \$(seq 1 40); do \

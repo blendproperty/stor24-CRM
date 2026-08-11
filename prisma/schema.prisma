@@ -282,8 +282,14 @@ model Customer {
   email          String?
   phone          String?
   identityRef    String?
+  taxNumber      String?
+  dateOfBirth    DateTime?
   billingAddress Json?
   emergencyContact Json?
+  alternateContact Json?
+  workContact    Json?
+  communicationConsent Json?
+  notes          String?
   leads          Lead[]
   reservations   Reservation[]
   tenancies      Tenancy[]

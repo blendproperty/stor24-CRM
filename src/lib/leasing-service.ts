@@ -15,7 +15,7 @@ export async function listLeasing(scope: RequestScope) {
   });
   const facilityIds = facilities.map((facility) => facility.id);
   const [customers, leads, reservations, tenancies] = await Promise.all([
-    db.customer.findMany({ where: { organisationId: scope.organisationId }, orderBy: { updatedAt: "desc" } }),
+    db.customer.findMany({ where: { organisationId: scope.organisationId }, include: { leads: { orderBy: { updatedAt: "desc" }, take: 10 }, reservations: { include: { facility: true, unit: true }, orderBy: { updatedAt: "desc" }, take: 10 }, tenancies: { include: { facility: true, account: true, occupancies: { include: { unit: { include: { unitType: true } } }, orderBy: { startDate: "desc" } } }, orderBy: { updatedAt: "desc" } } }, orderBy: { updatedAt: "desc" } }),
     db.lead.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, desiredUnitType: true, facility: true }, orderBy: { updatedAt: "desc" } }),
     db.reservation.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, unit: true, facility: true }, orderBy: { updatedAt: "desc" } }),
     db.tenancy.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, account: true, facility: true, occupancies: { include: { unit: true }, orderBy: { startDate: "desc" } } }, orderBy: { updatedAt: "desc" } }),

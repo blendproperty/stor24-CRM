@@ -2025,3 +2025,23 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .credit-amount { color: var(--green); font-weight: 800; }
 @media (max-width: 980px) { .accounts-layout { grid-template-columns: 1fr; } .account-info-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 560px) { .account-info-grid { grid-template-columns: 1fr; } .account-detail .panel-heading { align-items: start; } .account-balance { justify-items: start; } }
+.customer-record-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 20px 0; }
+.customer-record-grid > section { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.customer-record-grid h3 { margin: 0; padding: 10px 13px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.customer-record-grid section > div { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 8px 13px; }
+.customer-record-grid span { color: var(--muted); font-size: 12px; }
+.customer-consent { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; padding: 13px; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 12px; }
+.customer-notes { margin-top: 20px; padding: 14px; border-radius: 12px; background: #faf9f5; }
+.customer-notes h3, .customer-notes p { margin: 0; }
+.customer-notes p { margin-top: 7px; white-space: pre-wrap; }
+.customer-modal { width: min(980px,calc(100vw - 30px)); max-height: calc(100vh - 36px); overflow: auto; }
+.customer-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 18px; }
+.customer-form fieldset { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; }
+.customer-form legend { padding: 0 6px; font-weight: 850; }
+.customer-form label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.customer-form .check-label { display: flex; }
+.customer-form-wide { grid-column: 1 / -1; }
+.customer-notes-input { grid-column: 1 / -1; }
+@media (max-width: 760px) { .customer-record-grid, .customer-form { grid-template-columns: 1fr; } .customer-form-wide { grid-column: auto; } .customer-form fieldset { grid-template-columns: 1fr; } .customer-notes-input { grid-column: auto; } }
+.move-in-add-customer { justify-self: start; margin-top: 2px; }
+.move-in-form label small { color: var(--muted); font-weight: 500; }
