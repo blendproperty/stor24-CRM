@@ -58,6 +58,18 @@ export async function createReservation(scope: RequestScope, data: Prisma.Reserv
   });
 }
 
+export async function cancelReservation(scope: RequestScope, reservationId: string) {
+  const reservation = await db.reservation.findFirst({ where: { id: reservationId }, include: { unit: true } });
+  if (!reservation) throw new Error("NOT_FOUND"); await requireFacility(scope, reservation.facilityId); if (reservation.status !== "ACTIVE") throw new Error("CONFLICT");
+  return db.$transaction(async (tx) => {
+    const entity = await tx.reservation.update({ where: { id: reservation.id }, data: { status: "CANCELLED" } });
+    const otherActive = await tx.reservation.count({ where: { unitId: reservation.unitId, status: "ACTIVE", id: { not: reservation.id } } });
+    const activeOccupancy = await tx.occupancy.count({ where: { unitId: reservation.unitId, status: "ACTIVE" } });
+    if (!otherActive && !activeOccupancy && reservation.unit.status === "RESERVED") await tx.unit.update({ where: { id: reservation.unitId }, data: { status: "AVAILABLE" } });
+    await audit(tx, scope, "reservation.cancelled", "Reservation", entity.id, reservation.facilityId); return entity;
+  });
+}
+
 export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string }) {
   await requireFacility(scope, input.facilityId);
   return db.$transaction(async (tx) => {

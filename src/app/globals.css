@@ -2129,6 +2129,17 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-legend-reserved { border-color: #7c3aed !important; background: #f0eafe; }
 .map-legend-occupied { border-color: #dc2626 !important; background: #feecec; }
 .map-legend-service { border-color: #d97706 !important; background: #fff3dd; }
+.reservation-toolbar { display: grid; grid-template-columns: repeat(2,minmax(170px,240px)) minmax(240px,1fr); gap: 12px; align-items: end; padding: 14px; }
+.reservation-toolbar > label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.reservation-toolbar select, .reservation-toolbar input { width: 100%; min-height: 41px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); }
+.reservation-toolbar .toolbar-search input { min-height: 36px; padding: 0; border: 0; }
+.reservation-modal { width: min(720px,calc(100vw - 30px)); }
+.data-table td small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+.reservation-overdue { color: #b42318; font-weight: 800; }
+.reservation-overdue small { color: #b42318 !important; }
+.reservation-actions { display: flex; gap: 10px; align-items: center; white-space: nowrap; }
+.text-button.danger { color: #b42318; }
+@media (max-width: 700px) { .reservation-toolbar { grid-template-columns: 1fr; } }
 .map-unit-modal { width: min(650px,calc(100vw - 30px)); }
 .map-unit-tabs { display: flex; gap: 5px; margin-top: 16px; padding: 4px; border-radius: 9px; background: #f0f2f3; }
 .map-unit-tabs button { flex: 1; min-height: 36px; border: 0; border-radius: 7px; background: transparent; font-weight: 750; }
