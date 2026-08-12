@@ -77,7 +77,7 @@ type Facility = {
   units: Unit[];
   maps: MapRecord[];
 };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
+type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
 type DraftUnit = {
   unitTypeId: string;
   number: string;
@@ -111,6 +111,7 @@ const elementDefaults: Record<
 > = {
   ZONE: { width: 260, height: 180, label: "Zone" },
   WALL: { width: 240, height: 14, label: "Wall" },
+  FIRE_WALL: { width: 240, height: 14, label: "Fire wall" },
   DOOR: { width: 100, height: 60, label: "Door" },
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
@@ -303,7 +304,7 @@ export function FacilityMapEditor() {
     const hasLegacyRotation = Boolean(
       map?.elements.some(
         (element) =>
-          ["WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0,
       ),
     );
@@ -323,16 +324,16 @@ export function FacilityMapEditor() {
         x: element.x,
         y: element.y,
         width:
-          ["WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.height
             : element.width,
         height:
-          ["WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.width
             : element.height,
-        rotation: ["WALL", "WINDOW"].includes(element.type)
+        rotation: ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type)
           ? 0
           : element.rotation,
         label: element.label || element.unit?.number || element.type,
@@ -647,8 +648,16 @@ export function FacilityMapEditor() {
             />
             <Tool
               icon={<Grid3X3 />}
-              label="Wall"
+              label="Normal wall"
+              type="WALL"
               action={() => addShape("WALL")}
+              draggable
+            />
+            <Tool
+              icon={<Grid3X3 />}
+              label="Fire wall"
+              type="FIRE_WALL"
+              action={() => addShape("FIRE_WALL")}
               draggable
             />
             <Tool
@@ -901,7 +910,7 @@ export function FacilityMapEditor() {
                     <ArrowRight />
                   </button>
                 </div>
-                {["WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
+                {["WALL", "FIRE_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"
@@ -1098,6 +1107,7 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = {
     transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1})`,
   };
+  if (element.type === "WALL" || element.type === "FIRE_WALL") return null;
   if (element.type === "SINGLE_DOOR") {
     return (
       <svg className="map-door-swing" viewBox="0 0 100 100" style={rotation} aria-label={element.label}>
@@ -1198,6 +1208,18 @@ function UnitPlacementDialog({
   close: () => void;
   place: (unit: Unit | null, draft?: DraftUnit) => void;
 }) {
+  const nextUnitNumber = useMemo(() => {
+    const numericNumbers = [...facility.units.map((unit) => unit.number), ...draftNumbers]
+      .filter((number) => /^\d+$/.test(number.trim()))
+      .map(Number);
+    let candidate = numericNumbers.length ? Math.max(...numericNumbers) + 1 : 1;
+    const used = new Set([
+      ...facility.units.map((unit) => unit.number.toLowerCase()),
+      ...draftNumbers.map((number) => number.toLowerCase()),
+    ]);
+    while (used.has(String(candidate).toLowerCase())) candidate += 1;
+    return String(candidate);
+  }, [facility.units, draftNumbers]);
   const [mode, setMode] = useState<"existing" | "new">(
     facility.units.some((unit) => !placedUnitIds.has(unit.id))
       ? "existing"
@@ -1312,7 +1334,7 @@ function UnitPlacementDialog({
               </label>
               <label>
                 Unit number
-                <input name="number" required />
+                <input name="number" defaultValue={nextUnitNumber} required />
               </label>
               <label>
                 Zone / section
