@@ -98,7 +98,7 @@ type CanvasElement = {
 
 const snap = (value: number) => Math.max(0, Math.round(value / 10) * 10);
 const freshId = () => `draft-${crypto.randomUUID()}`;
-const defaultCanvasSize = { width: 1800, height: 1100 };
+const defaultCanvasSize = { width: 3000, height: 1800 };
 const elementDefaults: Record<
   Exclude<ElementType, "UNIT">,
   Pick<CanvasElement, "width" | "height" | "label">
@@ -382,6 +382,13 @@ export function FacilityMapEditor() {
       y: Math.max(0, selected.y + dy),
     });
   }
+  function expandCanvas(axis: "width" | "height") {
+    setCanvasSize((current) => ({
+      ...current,
+      [axis]: Math.min(5000, current[axis] + (axis === "width" ? 600 : 400)),
+    }));
+    setDirty(true);
+  }
   function rotateSelected() {
     if (!selected) return;
     patchElement(selected.id, {
@@ -643,7 +650,16 @@ export function FacilityMapEditor() {
         )}
         <div className="panel map-stage">
           <div className="map-stage-toolbar">
-            <span>{floorName || "Layout"}</span>
+            <div className="map-canvas-controls">
+              <span>{floorName || "Layout"}</span>
+              <small>{canvasSize.width} × {canvasSize.height}px</small>
+              {mode === "build" ? (
+                <>
+                  <button type="button" onClick={() => expandCanvas("width")}>Wider +600</button>
+                  <button type="button" onClick={() => expandCanvas("height")}>Taller +400</button>
+                </>
+              ) : null}
+            </div>
             <div>
               <button
                 onClick={() => setZoom((value) => Math.max(0.4, value - 0.1))}

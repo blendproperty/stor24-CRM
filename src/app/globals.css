@@ -2106,6 +2106,10 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-stage-toolbar > div { display: flex; align-items: center; gap: 8px; }
 .map-stage-toolbar button { display: grid; place-items: center; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .map-stage-toolbar b { min-width: 42px; color: var(--muted); font-size: 11px; text-align: center; }
+.map-stage-toolbar .map-canvas-controls { flex-wrap: wrap; }
+.map-stage-toolbar .map-canvas-controls small { color: var(--muted); font-size: 10px; font-weight: 700; }
+.map-stage-toolbar .map-canvas-controls button { width: auto; padding: 0 9px; color: var(--ink); font-size: 10px; font-weight: 800; }
+.map-stage-toolbar .map-canvas-controls button:hover { border-color: var(--orange); color: var(--orange); }
 .map-scroll { height: min(760px,calc(100vh - 250px)); min-height: 680px; overflow: auto; background: #e9ecef; }
 .map-canvas { position: relative; overflow: hidden; background-color: white; background-image: linear-gradient(#e7e9eb 1px,transparent 1px),linear-gradient(90deg,#e7e9eb 1px,transparent 1px); background-size: 20px 20px; box-shadow: 0 0 0 1px #d5d8dc; user-select: none; }
 .map-canvas-empty { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 7px; color: var(--muted); text-align: center; pointer-events: none; }
