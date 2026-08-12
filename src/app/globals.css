@@ -2125,7 +2125,8 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-door-swing { width: 100%; height: 100%; overflow: visible; transform-origin: center; pointer-events: none; }
 .map-door-swing path { fill: none; vector-effect: non-scaling-stroke; }
 .map-door-arc { stroke: #69747c; stroke-width: 1.5; }
-.map-door-frame { stroke: #203747; stroke-width: 4; stroke-linecap: square; }
+.map-door-opening { stroke: #203747; stroke-width: 3; }
+.map-door-frame { stroke: #69747c; stroke-width: 1.7; stroke-linecap: square; }
 .map-door-swing circle { fill: #203747; }
 .map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
 .map-editor-wall, .map-editor-door, .map-editor-window { min-width: 2px; min-height: 2px; }
@@ -2141,6 +2142,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-property-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .map-property-note { display: flex; align-items: center; gap: 7px; padding: 9px; border-radius: 8px; background: #f4f6f7; color: var(--muted); font-size: 11px; font-weight: 750; }
 .map-properties .button-danger { width: calc(100% - 26px); justify-content: center; border-color: #f1b6b6; color: #b42318; background: #fff5f5; }
+.map-properties .map-duplicate-button { width: calc(100% - 26px); justify-content: center; }
 .map-nudge { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; margin: 12px 13px 0; }
 .map-nudge button { display: grid; place-items: center; min-height: 36px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .map-nudge button:hover { border-color: var(--orange); color: var(--orange); }

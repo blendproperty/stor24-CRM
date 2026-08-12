@@ -8,6 +8,7 @@ import {
   ArrowRight,
   ArrowUp,
   Box,
+  Copy,
   DoorOpen,
   Eye,
   Grid3X3,
@@ -105,7 +106,7 @@ const elementDefaults: Record<
 > = {
   ZONE: { width: 260, height: 180, label: "Zone" },
   WALL: { width: 240, height: 14, label: "Wall" },
-  DOOR: { width: 70, height: 70, label: "Door" },
+  DOOR: { width: 100, height: 60, label: "Door" },
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
 };
@@ -288,9 +289,8 @@ export function FacilityMapEditor() {
     const hasLegacyRotation = Boolean(
       map?.elements.some(
         (element) =>
-          (["WALL", "WINDOW"].includes(element.type) &&
-            element.rotation % 180 !== 0) ||
-          (element.type === "DOOR" && element.width !== element.height),
+          ["WALL", "WINDOW"].includes(element.type) &&
+          element.rotation % 180 !== 0,
       ),
     );
     setCanvasSize(
@@ -309,16 +309,12 @@ export function FacilityMapEditor() {
         x: element.x,
         y: element.y,
         width:
-          element.type === "DOOR"
-            ? Math.max(element.width, element.height)
-            : ["WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.height
             : element.width,
         height:
-          element.type === "DOOR"
-            ? Math.max(element.width, element.height)
-            : ["WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.width
             : element.height,
@@ -397,10 +393,7 @@ export function FacilityMapEditor() {
   function rotateSelected(degrees = 90) {
     if (!selected) return;
     if (selected.type === "DOOR") {
-      const size = Math.max(selected.width, selected.height);
       patchElement(selected.id, {
-        width: size,
-        height: size,
         rotation: (selected.rotation + degrees) % 360,
       });
       return;
@@ -415,6 +408,19 @@ export function FacilityMapEditor() {
     if (!selected) return;
     setElements((items) => items.filter((item) => item.id !== selected.id));
     setSelectedId("");
+    setDirty(true);
+  }
+  function duplicateSelected() {
+    if (!selected || selected.type === "UNIT") return;
+    const duplicate: CanvasElement = {
+      ...selected,
+      id: freshId(),
+      x: Math.min(canvasSize.width - selected.width, selected.x + 20),
+      y: Math.min(canvasSize.height - selected.height, selected.y + 20),
+      label: `${selected.label} copy`,
+    };
+    setElements((items) => [...items, duplicate]);
+    setSelectedId(duplicate.id);
     setDirty(true);
   }
   function placeUnit(unit: Unit | null, draft?: DraftUnit) {
@@ -761,13 +767,15 @@ export function FacilityMapEditor() {
                   {element.type === "DOOR" ? (
                     <svg
                       className="map-door-swing"
-                      viewBox="0 0 100 100"
+                      viewBox="0 0 100 60"
                       style={{ transform: `rotate(${element.rotation}deg)` }}
                       aria-label={element.label}
                     >
-                      <path className="map-door-arc" d="M 95 95 A 90 90 0 0 0 5 5" />
-                      <path className="map-door-frame" d="M 5 95 L 95 95 M 5 95 L 5 5" />
-                      <circle cx="5" cy="95" r="3" />
+                      <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 50 5 M 95 55 A 50 50 0 0 0 50 5" />
+                      <path className="map-door-opening" d="M 5 5 L 5 55 M 95 5 L 95 55" />
+                      <path className="map-door-frame" d="M 5 5 L 50 55 L 95 5" />
+                      <circle cx="5" cy="5" r="2.5" />
+                      <circle cx="95" cy="5" r="2.5" />
                     </svg>
                   ) : (
                     <span>{element.label}</span>
@@ -881,49 +889,57 @@ export function FacilityMapEditor() {
                   <label>
                     X
                     <input
+                      key={`${selected.id}-x-${selected.x}`}
                       type="number"
-                      value={selected.x}
-                      onChange={(event) =>
+                      defaultValue={selected.x}
+                      onBlur={(event) =>
                         patchElement(selected.id, {
                           x: snap(Number(event.target.value)),
                         })
                       }
+                      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                     />
                   </label>
                   <label>
                     Y
                     <input
+                      key={`${selected.id}-y-${selected.y}`}
                       type="number"
-                      value={selected.y}
-                      onChange={(event) =>
+                      defaultValue={selected.y}
+                      onBlur={(event) =>
                         patchElement(selected.id, {
                           y: snap(Number(event.target.value)),
                         })
                       }
+                      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                     />
                   </label>
                   <label>
                     Width
                     <input
+                      key={`${selected.id}-width-${selected.width}`}
                       type="number"
-                      value={selected.width}
-                      onChange={(event) =>
+                      defaultValue={selected.width}
+                      onBlur={(event) =>
                         patchElement(selected.id, {
                           width: Math.max(10, Number(event.target.value)),
                         })
                       }
+                      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                     />
                   </label>
                   <label>
                     Height
                     <input
+                      key={`${selected.id}-height-${selected.height}`}
                       type="number"
-                      value={selected.height}
-                      onChange={(event) =>
+                      defaultValue={selected.height}
+                      onBlur={(event) =>
                         patchElement(selected.id, {
                           height: Math.max(10, Number(event.target.value)),
                         })
                       }
+                      onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                     />
                   </label>
                 </div>
@@ -932,6 +948,15 @@ export function FacilityMapEditor() {
                     <Tag size={14} />
                     {selected.status || "Draft unit"}
                   </p>
+                ) : null}
+                {selected.type !== "UNIT" ? (
+                  <button
+                    type="button"
+                    className="button button-secondary map-duplicate-button"
+                    onClick={duplicateSelected}
+                  >
+                    <Copy size={15} /> Duplicate object
+                  </button>
                 ) : null}
                 <button
                   className="button button-danger"
