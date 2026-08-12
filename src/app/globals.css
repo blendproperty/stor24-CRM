@@ -2121,7 +2121,12 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-element.live { cursor: pointer; }
 .map-editor-zone { place-content: start; padding: 8px; border-style: dashed; background: rgba(25,118,210,.07); color: #31506d; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }
-.map-editor-door { border-color: #b7791f; border-radius: 999px 999px 0 0; background: #f6c768; }
+.map-editor-door { overflow: visible; border: 0; background: transparent; }
+.map-door-swing { width: 100%; height: 100%; overflow: visible; transform-origin: center; pointer-events: none; }
+.map-door-swing path { fill: none; vector-effect: non-scaling-stroke; }
+.map-door-arc { stroke: #69747c; stroke-width: 1.5; }
+.map-door-frame { stroke: #203747; stroke-width: 4; stroke-linecap: square; }
+.map-door-swing circle { fill: #203747; }
 .map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
 .map-editor-wall, .map-editor-door, .map-editor-window { min-width: 2px; min-height: 2px; }
 .map-editor-label { border: 0; background: transparent; font-size: 18px; cursor: move; }

@@ -105,7 +105,7 @@ const elementDefaults: Record<
 > = {
   ZONE: { width: 260, height: 180, label: "Zone" },
   WALL: { width: 240, height: 14, label: "Wall" },
-  DOOR: { width: 70, height: 18, label: "Door" },
+  DOOR: { width: 70, height: 70, label: "Door" },
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
 };
@@ -288,8 +288,9 @@ export function FacilityMapEditor() {
     const hasLegacyRotation = Boolean(
       map?.elements.some(
         (element) =>
-          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
-          element.rotation % 180 !== 0,
+          (["WALL", "WINDOW"].includes(element.type) &&
+            element.rotation % 180 !== 0) ||
+          (element.type === "DOOR" && element.width !== element.height),
       ),
     );
     setCanvasSize(
@@ -308,16 +309,20 @@ export function FacilityMapEditor() {
         x: element.x,
         y: element.y,
         width:
-          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
+          element.type === "DOOR"
+            ? Math.max(element.width, element.height)
+            : ["WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.height
             : element.width,
         height:
-          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
+          element.type === "DOOR"
+            ? Math.max(element.width, element.height)
+            : ["WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.width
             : element.height,
-        rotation: ["WALL", "DOOR", "WINDOW"].includes(element.type)
+        rotation: ["WALL", "WINDOW"].includes(element.type)
           ? 0
           : element.rotation,
         label: element.label || element.unit?.number || element.type,
@@ -389,8 +394,17 @@ export function FacilityMapEditor() {
     }));
     setDirty(true);
   }
-  function rotateSelected() {
+  function rotateSelected(degrees = 90) {
     if (!selected) return;
+    if (selected.type === "DOOR") {
+      const size = Math.max(selected.width, selected.height);
+      patchElement(selected.id, {
+        width: size,
+        height: size,
+        rotation: (selected.rotation + degrees) % 360,
+      });
+      return;
+    }
     patchElement(selected.id, {
       width: selected.height,
       height: selected.width,
@@ -702,7 +716,10 @@ export function FacilityMapEditor() {
                     top: element.y,
                     width: element.width,
                     height: element.height,
-                    transform: `rotate(${element.rotation}deg)`,
+                    transform:
+                      element.type === "DOOR"
+                        ? undefined
+                        : `rotate(${element.rotation}deg)`,
                   }}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -741,7 +758,20 @@ export function FacilityMapEditor() {
                     dragRef.current = null;
                   }}
                 >
-                  <span>{element.label}</span>
+                  {element.type === "DOOR" ? (
+                    <svg
+                      className="map-door-swing"
+                      viewBox="0 0 100 100"
+                      style={{ transform: `rotate(${element.rotation}deg)` }}
+                      aria-label={element.label}
+                    >
+                      <path className="map-door-arc" d="M 95 95 A 90 90 0 0 0 5 5" />
+                      <path className="map-door-frame" d="M 5 95 L 95 95 M 5 95 L 5 5" />
+                      <circle cx="5" cy="95" r="3" />
+                    </svg>
+                  ) : (
+                    <span>{element.label}</span>
+                  )}
                   {element.type === "UNIT" ? (
                     <small>{element.status?.toLowerCase()}</small>
                   ) : null}
@@ -830,9 +860,18 @@ export function FacilityMapEditor() {
                   <button
                     type="button"
                     className="map-rotate-button"
-                    onClick={rotateSelected}
+                    onClick={() => rotateSelected(90)}
                   >
                     <RotateCw size={15} /> Rotate 90°
+                  </button>
+                ) : null}
+                {selected.type === "DOOR" ? (
+                  <button
+                    type="button"
+                    className="map-rotate-button"
+                    onClick={() => rotateSelected(180)}
+                  >
+                    <RotateCw size={15} /> Flip 180°
                   </button>
                 ) : null}
                 <small className="map-nudge-help">
