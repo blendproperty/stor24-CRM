@@ -414,6 +414,33 @@ export function FacilityMapEditor() {
       y: Math.max(0, selected.y + dy),
     });
   }
+  function snapDoorToNearestUnit(id: string) {
+    const door = elements.find((element) => element.id === id);
+    if (!door || !["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(door.type)) return;
+    const units = elements.filter((element) => element.type === "UNIT");
+    const verticalDoor = door.rotation % 180 !== 0;
+    let best: { distance: number; x?: number; y?: number } | undefined;
+    for (const unit of units) {
+      if (verticalDoor) {
+        const overlaps = door.y < unit.y + unit.height && door.y + door.height > unit.y;
+        if (!overlaps) continue;
+        const candidates = [
+          { distance: Math.abs(door.x + door.width - unit.x), x: unit.x - door.width },
+          { distance: Math.abs(door.x - (unit.x + unit.width)), x: unit.x + unit.width },
+        ];
+        for (const candidate of candidates) if (candidate.distance <= 35 && (!best || candidate.distance < best.distance)) best = candidate;
+      } else {
+        const overlaps = door.x < unit.x + unit.width && door.x + door.width > unit.x;
+        if (!overlaps) continue;
+        const candidates = [
+          { distance: Math.abs(door.y + door.height - unit.y), y: unit.y - door.height },
+          { distance: Math.abs(door.y - (unit.y + unit.height)), y: unit.y + unit.height },
+        ];
+        for (const candidate of candidates) if (candidate.distance <= 35 && (!best || candidate.distance < best.distance)) best = candidate;
+      }
+    }
+    if (best) patchElement(id, { ...(best.x === undefined ? {} : { x: best.x }), ...(best.y === undefined ? {} : { y: best.y }) });
+  }
   function expandCanvas(axis: "width" | "height") {
     setCanvasSize((current) => ({
       ...current,
@@ -822,6 +849,7 @@ export function FacilityMapEditor() {
                       });
                   }}
                   onPointerUp={() => {
+                    snapDoorToNearestUnit(element.id);
                     dragRef.current = null;
                   }}
                 >
@@ -1122,8 +1150,8 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
     return (
       <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
         <path className="map-door-wall" d="M 0 5 H 20 M 80 5 H 100" />
-        <path className="map-door-leaf" d="M 20 5 V 35 M 80 5 V 35" />
-        <path className="map-door-arc" d="M 20 35 A 30 30 0 0 0 50 5 M 80 35 A 30 30 0 0 1 50 5" />
+        <path className="map-door-leaf" d="M 20 5 V 59 M 80 5 V 59" />
+        <path className="map-door-arc" d="M 20 59 A 30 54 0 0 0 50 5 M 80 59 A 30 54 0 0 1 50 5" />
         <circle cx="20" cy="5" r="2.2" /><circle cx="80" cy="5" r="2.2" />
       </svg>
     );
