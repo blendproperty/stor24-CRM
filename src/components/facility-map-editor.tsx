@@ -113,7 +113,7 @@ const elementDefaults: Record<
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
   ROLLER_SHUTTER: { width: 140, height: 36, label: "Roller shutter" },
-  SINGLE_DOOR: { width: 70, height: 60, label: "Single door" },
+  SINGLE_DOOR: { width: 70, height: 70, label: "Single door" },
   DOUBLE_DOOR: { width: 110, height: 60, label: "Double door" },
   STAIRS: { width: 140, height: 90, label: "Stairs" },
   LIFT: { width: 90, height: 90, label: "Lift" },
@@ -1068,21 +1068,21 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = { transform: `rotate(${element.rotation}deg)` };
   if (element.type === "SINGLE_DOOR") {
     return (
-      <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
-        <path className="map-door-opening" d="M 5 5 L 5 55" />
-        <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 55 5" />
-        <path className="map-door-frame" d="M 5 5 L 55 55" />
-        <circle cx="5" cy="5" r="2.5" />
+      <svg className="map-door-swing" viewBox="0 0 100 100" style={rotation} aria-label={element.label}>
+        <path className="map-door-wall" d="M 8 0 V 10 M 8 90 V 100" />
+        <path className="map-door-leaf" d="M 8 10 H 88" />
+        <path className="map-door-arc" d="M 88 10 A 80 80 0 0 1 8 90" />
+        <circle cx="8" cy="10" r="2.2" />
       </svg>
     );
   }
   if (element.type === "DOOR" || element.type === "DOUBLE_DOOR") {
     return (
       <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
-        <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 50 5 M 95 55 A 50 50 0 0 0 50 5" />
-        <path className="map-door-opening" d="M 5 5 L 5 55 M 95 5 L 95 55" />
-        <path className="map-door-frame" d="M 5 5 L 50 55 L 95 5" />
-        <circle cx="5" cy="5" r="2.5" /><circle cx="95" cy="5" r="2.5" />
+        <path className="map-door-wall" d="M 0 5 H 20 M 80 5 H 100" />
+        <path className="map-door-leaf" d="M 20 5 V 35 M 80 5 V 35" />
+        <path className="map-door-arc" d="M 20 35 A 30 30 0 0 1 50 5 M 80 35 A 30 30 0 0 0 50 5" />
+        <circle cx="20" cy="5" r="2.2" /><circle cx="80" cy="5" r="2.2" />
       </svg>
     );
   }
