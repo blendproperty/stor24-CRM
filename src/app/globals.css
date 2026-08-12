@@ -2118,6 +2118,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-element { position: absolute; display: grid; place-content: center; min-width: 30px; min-height: 20px; border: 2px solid #88929d; background: rgba(241,244,246,.92); color: var(--ink); font-size: 12px; font-weight: 850; text-align: center; cursor: move; touch-action: none; }
 .map-editor-element.selected { outline: 3px solid rgba(255,90,22,.28); border-color: var(--orange); z-index: 20; }
 .map-editor-element small { font-size: 9px; font-weight: 700; text-transform: capitalize; }
+.map-editor-element .map-unit-area { margin: 2px 0 1px; font-size: 10px; font-weight: 850; text-transform: none; }
 .map-editor-element.live { cursor: pointer; }
 .map-editor-zone { place-content: start; padding: 8px; border-style: dashed; background: rgba(25,118,210,.07); color: #31506d; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }

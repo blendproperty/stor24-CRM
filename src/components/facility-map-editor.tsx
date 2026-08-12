@@ -827,7 +827,17 @@ export function FacilityMapEditor() {
                 >
                   <MapElementSymbol element={element} />
                   {element.type === "UNIT" ? (
-                    <small>{element.status?.toLowerCase()}</small>
+                    <>
+                      <small className="map-unit-area">
+                        {formatUnitArea(
+                          element.unitDetails?.unitType ||
+                            facility?.unitTypes.find(
+                              (type) => type.id === element.unit?.unitTypeId,
+                            ),
+                        )}
+                      </small>
+                      <small>{element.status?.toLowerCase()}</small>
+                    </>
                   ) : null}
                   {mode === "build" ? (
                     <i
@@ -1062,6 +1072,10 @@ export function FacilityMapEditor() {
                   </strong>
                 </div>
                 <div>
+                  <span>Area</span>
+                  <strong>{formatUnitArea(selected.unitDetails.unitType)}</strong>
+                </div>
+                <div>
                   <span>Monthly rate</span>
                   <strong>
                     {Number(selected.unitDetails.monthlyRate).toLocaleString(
@@ -1191,6 +1205,16 @@ function unitTypeSummary(type?: UnitType) {
     .filter(Boolean)
     .join(" × ");
   return `${area ? `${area} m²` : "Area not set"}${dimensions ? ` · ${dimensions} m` : ""}`;
+}
+
+function formatUnitArea(type?: UnitType) {
+  if (!type) return "Area not set";
+  const storedArea = Number(type.areaSqMetres);
+  const calculatedArea =
+    Number(type.widthMetres) * Number(type.lengthMetres);
+  const area = storedArea > 0 ? storedArea : calculatedArea;
+  if (!Number.isFinite(area) || area <= 0) return "Area not set";
+  return `${Number(area.toFixed(2)).toLocaleString("en-ZA")} m²`;
 }
 
 function UnitPlacementDialog({
