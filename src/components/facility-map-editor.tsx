@@ -448,7 +448,7 @@ export function FacilityMapEditor() {
       id: freshId(),
       x: Math.min(canvasSize.width - selected.width, selected.x + 20),
       y: Math.min(canvasSize.height - selected.height, selected.y + 20),
-      label: `${selected.label} copy`,
+      label: selected.label,
     };
     setElements((items) => [...items, duplicate]);
     setSelectedId(duplicate.id);
@@ -501,6 +501,7 @@ export function FacilityMapEditor() {
         ...canvasSize,
         elements: elements.map((element) => ({
           ...element,
+          label: element.label.slice(0, 120),
           status: undefined,
           unitDetails: undefined,
         })),
@@ -509,11 +510,17 @@ export function FacilityMapEditor() {
     const payload = await response.json().catch(() => ({}));
     setBusy(false);
     if (!response.ok) {
+      const fieldMessage = payload.error?.fields
+        ? Object.entries(payload.error.fields as Record<string, string[]>)
+            .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`))
+            .join(" ")
+        : "";
       setError(
         payload.error?.message ??
-          (response.status === 409
-            ? "A unit number is duplicated or already placed on another floor."
-            : "The layout could not be saved."),
+          (fieldMessage ||
+            (response.status === 409
+              ? "A unit number is duplicated or already placed on another floor."
+              : "The layout could not be saved.")),
       );
       return;
     }
@@ -901,6 +908,7 @@ export function FacilityMapEditor() {
                   Label
                   <input
                     value={selected.label}
+                    maxLength={120}
                     onChange={(event) =>
                       patchElement(selected.id, { label: event.target.value })
                     }
