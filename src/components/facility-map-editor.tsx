@@ -135,6 +135,7 @@ export function FacilityMapEditor() {
   const [unitDialog, setUnitDialog] = useState(false);
   const [mode, setMode] = useState<"build" | "live">("build");
   const [expanded, setExpanded] = useState(false);
+  const mapScrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
     id: string;
     startX: number;
@@ -377,17 +378,27 @@ export function FacilityMapEditor() {
   }
   function addShape(type: Exclude<ElementType, "UNIT">) {
     const defaults = elementDefaults[type];
+    const position = visibleCanvasPosition(defaults.width, defaults.height);
     const element = {
       id: freshId(),
       type,
-      x: 80,
-      y: 80,
+      ...position,
       rotation: 0,
       ...defaults,
     };
     setElements((items) => [...items, element]);
     setSelectedId(element.id);
     setDirty(true);
+  }
+  function visibleCanvasPosition(width: number, height: number) {
+    const viewport = mapScrollRef.current;
+    if (!viewport) return { x: 100, y: 100 };
+    const centreX = (viewport.scrollLeft + viewport.clientWidth / 2) / zoom;
+    const centreY = (viewport.scrollTop + viewport.clientHeight / 2) / zoom;
+    return {
+      x: snap(Math.max(0, Math.min(canvasSize.width - width, centreX - width / 2))),
+      y: snap(Math.max(0, Math.min(canvasSize.height - height, centreY - height / 2))),
+    };
   }
   function patchElement(id: string, patch: Partial<CanvasElement>) {
     setElements((items) =>
@@ -454,15 +465,17 @@ export function FacilityMapEditor() {
     const height = type?.lengthMetres
       ? Math.max(40, Number(type.lengthMetres) * scale)
       : 90;
+    const snappedWidth = snap(width);
+    const snappedHeight = snap(height);
+    const position = visibleCanvasPosition(snappedWidth, snappedHeight);
     const element: CanvasElement = {
       id: freshId(),
       unitId: unit?.id,
       unit: draft,
       type: "UNIT",
-      x: 100,
-      y: 100,
-      width: snap(width),
-      height: snap(height),
+      ...position,
+      width: snappedWidth,
+      height: snappedHeight,
       rotation: 0,
       label,
       status: unit?.status || "AVAILABLE",
@@ -733,7 +746,7 @@ export function FacilityMapEditor() {
               </button>
             </div>
           </div>
-          <div className="map-scroll">
+          <div className="map-scroll" ref={mapScrollRef}>
             <div
               className="map-canvas"
               style={{
