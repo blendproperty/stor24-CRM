@@ -533,8 +533,32 @@ export function FacilityMapEditor() {
       );
       return;
     }
+    const savedMap = payload.data as MapRecord;
+    setFacilities((current) =>
+      current.map((item) => {
+        if (item.id !== facilityId) return item;
+        const savedUnits = savedMap.elements.flatMap((element) =>
+          element.unit ? [element.unit] : [],
+        );
+        return {
+          ...item,
+          units: [
+            ...item.units.filter(
+              (unit) => !savedUnits.some((saved) => saved.id === unit.id),
+            ),
+            ...savedUnits,
+          ],
+          maps: item.maps.some((map) => map.id === savedMap.id)
+            ? item.maps.map((map) =>
+                map.id === savedMap.id ? savedMap : map,
+              )
+            : [...item.maps, savedMap],
+        };
+      }),
+    );
+    hydrate(savedMap, true);
+    setLastUpdated(new Date());
     setNotice(`${floorName} saved to ${facility?.name}.`);
-    await load(facilityId, floorName);
   }
 
   return (

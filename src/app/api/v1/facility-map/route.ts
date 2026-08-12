@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
 import { apiError, jsonBody } from "@/lib/api";
 import { requirePermission } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
@@ -45,21 +46,30 @@ export async function POST(request: Request) {
     const result = await db.$transaction(async (tx) => {
       const map = await tx.facilityMap.upsert({ where: { facilityId_name: { facilityId: input.facilityId, name: input.name } }, update: { width: input.width, height: input.height, backgroundUrl: input.backgroundUrl }, create: { facilityId: input.facilityId, name: input.name, width: input.width, height: input.height, backgroundUrl: input.backgroundUrl } });
       await tx.mapElement.deleteMany({ where: { mapId: map.id } });
+      const existingUnitIds = [...new Set(input.elements.flatMap((element) => element.type === "UNIT" && element.unitId ? [element.unitId] : []))];
+      if (existingUnitIds.length) {
+        const existingUnitCount = await tx.unit.count({ where: { facilityId: input.facilityId, id: { in: existingUnitIds } } });
+        if (existingUnitCount !== existingUnitIds.length) throw new Error("CONFLICT");
+      }
+      const draftTypeIds = [...new Set(input.elements.flatMap((element) => element.type === "UNIT" && !element.unitId && element.unit ? [element.unit.unitTypeId] : []))];
+      if (draftTypeIds.length) {
+        const draftTypeCount = await tx.unitType.count({ where: { facilityId: input.facilityId, id: { in: draftTypeIds } } });
+        if (draftTypeCount !== draftTypeIds.length) throw new Error("CONFLICT");
+      }
+      const elementRows: Prisma.MapElementCreateManyInput[] = [];
       for (const [sortOrder, element] of input.elements.entries()) {
         let unitId = element.unitId;
         if (element.type === "UNIT") {
-          if (unitId) {
-            const unit = await tx.unit.findFirst({ where: { id: unitId, facilityId: input.facilityId } }); if (!unit) throw new Error("CONFLICT");
-          } else {
+          if (!unitId) {
             if (!element.unit) throw new Error("CONFLICT");
-            const type = await tx.unitType.findFirst({ where: { id: element.unit.unitTypeId, facilityId: input.facilityId } }); if (!type) throw new Error("CONFLICT");
             const unit = await tx.unit.create({ data: { facilityId: input.facilityId, ...element.unit, status: "AVAILABLE" } }); unitId = unit.id;
           }
         }
-        await tx.mapElement.create({ data: { mapId: map.id, unitId, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label, config: element.unit || element.mirrored || element.flippedVertical ? { ...(element.unit ? { draftUnit: element.unit } : {}), mirrored: element.mirrored, flippedVertical: element.flippedVertical } : undefined, sortOrder } });
+        elementRows.push({ mapId: map.id, unitId, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label, config: element.unit || element.mirrored || element.flippedVertical ? { ...(element.unit ? { draftUnit: element.unit } : {}), mirrored: element.mirrored, flippedVertical: element.flippedVertical } : undefined, sortOrder });
       }
+      if (elementRows.length) await tx.mapElement.createMany({ data: elementRows });
       await tx.auditEvent.create({ data: { organisationId: scope.organisationId, facilityId: input.facilityId, actorId: scope.userId, action: "facility_map.saved", entityType: "FacilityMap", entityId: map.id, after: { name: map.name, elementCount: input.elements.length } } });
-      return map;
+      return tx.facilityMap.findUniqueOrThrow({ where: { id: map.id }, include: { elements: { include: { unit: { include: { unitType: true } } }, orderBy: { sortOrder: "asc" } } } });
     });
     return Response.json({ data: result });
   } catch (error) { return apiError(error); }
