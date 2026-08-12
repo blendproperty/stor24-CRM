@@ -77,7 +77,7 @@ type Facility = {
   units: Unit[];
   maps: MapRecord[];
 };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
+type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "PARTITION_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
 type DraftUnit = {
   unitTypeId: string;
   number: string;
@@ -113,6 +113,7 @@ const elementDefaults: Record<
   ZONE: { width: 260, height: 180, label: "Zone" },
   WALL: { width: 240, height: 14, label: "Wall" },
   FIRE_WALL: { width: 240, height: 14, label: "Fire wall" },
+  PARTITION_WALL: { width: 240, height: 4, label: "Partition wall" },
   DOOR: { width: 100, height: 60, label: "Door" },
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
@@ -305,7 +306,7 @@ export function FacilityMapEditor() {
     const hasLegacyRotation = Boolean(
       map?.elements.some(
         (element) =>
-          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "PARTITION_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0,
       ),
     );
@@ -325,16 +326,16 @@ export function FacilityMapEditor() {
         x: element.x,
         y: element.y,
         width:
-          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "PARTITION_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.height
             : element.width,
         height:
-          ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type) &&
+          ["WALL", "FIRE_WALL", "PARTITION_WALL", "WINDOW"].includes(element.type) &&
           element.rotation % 180 !== 0
             ? element.width
             : element.height,
-        rotation: ["WALL", "FIRE_WALL", "WINDOW"].includes(element.type)
+        rotation: ["WALL", "FIRE_WALL", "PARTITION_WALL", "WINDOW"].includes(element.type)
           ? 0
           : element.rotation,
         label: element.label || element.unit?.number || element.type,
@@ -675,6 +676,13 @@ export function FacilityMapEditor() {
               draggable
             />
             <Tool
+              icon={<Grid3X3 />}
+              label="Partition wall"
+              type="PARTITION_WALL"
+              action={() => addShape("PARTITION_WALL")}
+              draggable
+            />
+            <Tool
               icon={<DoorOpen />}
               label="Single door"
               type="SINGLE_DOOR"
@@ -872,14 +880,14 @@ export function FacilityMapEditor() {
                         if (resize?.id === element.id && event.buttons)
                           patchElement(element.id, {
                             width: Math.max(
-                              element.type === "UNIT" ? 30 : 10,
+                              element.type === "UNIT" ? 30 : element.type === "PARTITION_WALL" ? 2 : 10,
                               snap(
                                 resize.width +
                                   (event.clientX - resize.startX) / zoom,
                               ),
                             ),
                             height: Math.max(
-                              element.type === "UNIT" ? 20 : 10,
+                              element.type === "UNIT" ? 20 : element.type === "PARTITION_WALL" ? 2 : 10,
                               snap(
                                 resize.height +
                                   (event.clientY - resize.startY) / zoom,
@@ -935,7 +943,7 @@ export function FacilityMapEditor() {
                     <ArrowRight />
                   </button>
                 </div>
-                {["WALL", "FIRE_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
+                {["WALL", "FIRE_WALL", "PARTITION_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"
@@ -1009,7 +1017,7 @@ export function FacilityMapEditor() {
                       defaultValue={selected.width}
                       onBlur={(event) =>
                         patchElement(selected.id, {
-                          width: Math.max(10, Number(event.target.value)),
+                          width: Math.max(selected.type === "PARTITION_WALL" ? 2 : 10, Number(event.target.value)),
                         })
                       }
                       onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
@@ -1023,13 +1031,33 @@ export function FacilityMapEditor() {
                       defaultValue={selected.height}
                       onBlur={(event) =>
                         patchElement(selected.id, {
-                          height: Math.max(10, Number(event.target.value)),
+                          height: Math.max(selected.type === "PARTITION_WALL" ? 2 : 10, Number(event.target.value)),
                         })
                       }
                       onKeyDown={(event) => event.key === "Enter" && event.currentTarget.blur()}
                     />
                   </label>
                 </div>
+                {selected.type === "PARTITION_WALL" ? (
+                  <label>
+                    Line thickness (2–6 px)
+                    <input
+                      type="number"
+                      min={2}
+                      max={6}
+                      value={Math.min(selected.width, selected.height)}
+                      onChange={(event) => {
+                        const thickness = Math.max(2, Math.min(6, Number(event.target.value)));
+                        patchElement(
+                          selected.id,
+                          selected.width >= selected.height
+                            ? { height: thickness }
+                            : { width: thickness },
+                        );
+                      }}
+                    />
+                  </label>
+                ) : null}
                 {selected.type === "UNIT" ? (
                   <p className="map-property-note">
                     <Tag size={14} />
@@ -1143,7 +1171,7 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = {
     transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
   };
-  if (element.type === "WALL" || element.type === "FIRE_WALL") return null;
+  if (["WALL", "FIRE_WALL", "PARTITION_WALL"].includes(element.type)) return null;
   if (element.type === "SINGLE_DOOR") {
     return (
       <svg className="map-door-swing" viewBox="0 0 100 100" style={rotation} aria-label={element.label}>

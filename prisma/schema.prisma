@@ -21,6 +21,7 @@ enum MapElementType {
   ZONE
   WALL
   FIRE_WALL
+  PARTITION_WALL
   DOOR
   WINDOW
   LABEL
