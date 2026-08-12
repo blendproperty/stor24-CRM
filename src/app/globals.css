@@ -2118,6 +2118,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-zone { place-content: start; padding: 8px; border-style: dashed; background: rgba(25,118,210,.07); color: #31506d; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }
 .map-editor-door { border-color: #b7791f; border-radius: 999px 999px 0 0; background: #f6c768; }
+.map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
 .map-editor-label { border: 0; background: transparent; font-size: 18px; cursor: move; }
 .map-status-available { border-color: #159455; background: #e7f8ef; }
 .map-status-reserved, .map-status-held { border-color: #7c3aed; background: #f0eafe; }
@@ -2134,6 +2135,8 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-nudge button { display: grid; place-items: center; min-height: 36px; border: 1px solid var(--line); border-radius: 7px; background: white; }
 .map-nudge button:hover { border-color: var(--orange); color: var(--orange); }
 .map-nudge button svg { width: 15px; }
+.map-rotate-button { display: flex; width: calc(100% - 26px); min-height: 38px; align-items: center; justify-content: center; gap: 7px; margin: 8px 13px 0; border: 1px solid var(--line); border-radius: 8px; background: white; color: var(--ink); font-size: 11px; font-weight: 800; }
+.map-rotate-button:hover { border-color: var(--orange); color: var(--orange); }
 .map-nudge-help { display: block; margin: 7px 13px 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .map-legend { overflow: hidden; }
 .map-legend h2 { margin: 0; padding: 13px; border-bottom: 1px solid var(--border); font-size: 14px; }

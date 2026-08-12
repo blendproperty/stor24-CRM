@@ -2,95 +2,1180 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Box, DoorOpen, Eye, Grid3X3, Maximize2, Minimize2, MousePointer2, Pencil, Plus, Save, SquareDashed, Tag, Trash2, Type, Warehouse, X, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Box,
+  DoorOpen,
+  Eye,
+  Grid3X3,
+  Maximize2,
+  Minimize2,
+  MousePointer2,
+  Pencil,
+  Plus,
+  RotateCw,
+  Save,
+  Square,
+  SquareDashed,
+  Tag,
+  Trash2,
+  Type,
+  Warehouse,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 
-type UnitType = { id: string; name: string; widthMetres: string | null; lengthMetres: string | null; areaSqMetres: string | null };
-type Unit = { id: string; number: string; status: string; monthlyRate: string; unitTypeId: string; unitType: UnitType };
-type SavedElement = { id: string; unitId: string | null; type: ElementType; x: number; y: number; width: number; height: number; rotation: number; label: string | null; unit: Unit | null };
-type MapRecord = { id: string; name: string; width: number; height: number; elements: SavedElement[] };
-type Facility = { id: string; name: string; code: string; unitTypes: UnitType[]; units: Unit[]; maps: MapRecord[] };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "DOOR" | "LABEL";
-type DraftUnit = { unitTypeId: string; number: string; floor?: string; zone?: string; monthlyRate: number; taxRate: number };
-type CanvasElement = { id: string; unitId?: string; type: ElementType; x: number; y: number; width: number; height: number; rotation: number; label: string; status?: string; unit?: DraftUnit; unitDetails?: Unit };
+type UnitType = {
+  id: string;
+  name: string;
+  widthMetres: string | null;
+  lengthMetres: string | null;
+  areaSqMetres: string | null;
+};
+type Unit = {
+  id: string;
+  number: string;
+  status: string;
+  monthlyRate: string;
+  unitTypeId: string;
+  unitType: UnitType;
+};
+type SavedElement = {
+  id: string;
+  unitId: string | null;
+  type: ElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  label: string | null;
+  unit: Unit | null;
+};
+type MapRecord = {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  elements: SavedElement[];
+};
+type Facility = {
+  id: string;
+  name: string;
+  code: string;
+  unitTypes: UnitType[];
+  units: Unit[];
+  maps: MapRecord[];
+};
+type ElementType = "UNIT" | "ZONE" | "WALL" | "DOOR" | "WINDOW" | "LABEL";
+type DraftUnit = {
+  unitTypeId: string;
+  number: string;
+  floor?: string;
+  zone?: string;
+  monthlyRate: number;
+  taxRate: number;
+};
+type CanvasElement = {
+  id: string;
+  unitId?: string;
+  type: ElementType;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  label: string;
+  status?: string;
+  unit?: DraftUnit;
+  unitDetails?: Unit;
+};
 
 const snap = (value: number) => Math.max(0, Math.round(value / 10) * 10);
 const freshId = () => `draft-${crypto.randomUUID()}`;
 const defaultCanvasSize = { width: 1800, height: 1100 };
-const elementDefaults: Record<Exclude<ElementType, "UNIT">, Pick<CanvasElement, "width" | "height" | "label">> = {
-  ZONE: { width: 260, height: 180, label: "Zone" }, WALL: { width: 240, height: 14, label: "Wall" }, DOOR: { width: 70, height: 18, label: "Door" }, LABEL: { width: 180, height: 44, label: "Label" },
+const elementDefaults: Record<
+  Exclude<ElementType, "UNIT">,
+  Pick<CanvasElement, "width" | "height" | "label">
+> = {
+  ZONE: { width: 260, height: 180, label: "Zone" },
+  WALL: { width: 240, height: 14, label: "Wall" },
+  DOOR: { width: 70, height: 18, label: "Door" },
+  WINDOW: { width: 100, height: 12, label: "Window" },
+  LABEL: { width: 180, height: 44, label: "Label" },
 };
 
 export function FacilityMapEditor() {
-  const [facilities, setFacilities] = useState<Facility[]>([]); const [facilityId, setFacilityId] = useState(""); const [floorName, setFloorName] = useState("");
-  const [elements, setElements] = useState<CanvasElement[]>([]); const [canvasSize, setCanvasSize] = useState(defaultCanvasSize); const [selectedId, setSelectedId] = useState("");
-  const [zoom, setZoom] = useState(.8); const [unitDialog, setUnitDialog] = useState(false); const [mode, setMode] = useState<"build" | "live">("build");
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [facilityId, setFacilityId] = useState("");
+  const [floorName, setFloorName] = useState("");
+  const [elements, setElements] = useState<CanvasElement[]>([]);
+  const [canvasSize, setCanvasSize] = useState(defaultCanvasSize);
+  const [selectedId, setSelectedId] = useState("");
+  const [zoom, setZoom] = useState(0.8);
+  const [unitDialog, setUnitDialog] = useState(false);
+  const [mode, setMode] = useState<"build" | "live">("build");
   const [expanded, setExpanded] = useState(false);
-  const dragRef = useRef<{ id: string; startX: number; startY: number; x: number; y: number } | null>(null); const resizeRef = useRef<{ id: string; startX: number; startY: number; width: number; height: number } | null>(null);
-  const [dirty, setDirty] = useState(false); const [busy, setBusy] = useState(false); const [notice, setNotice] = useState(""); const [error, setError] = useState(""); const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const facility = facilities.find((item) => item.id === facilityId); const selected = elements.find((item) => item.id === selectedId);
-  const maps = facility?.maps ?? []; const currentMap = maps.find((map) => map.name === floorName);
-  const placedUnitIds = useMemo(() => new Set(facilities.flatMap((item) => item.maps.flatMap((map) => map.elements.map((element) => element.unitId).filter(Boolean) as string[]))), [facilities]);
-  const unavailableUnitIds = useMemo(() => new Set([...placedUnitIds, ...elements.flatMap((element) => element.unitId ? [element.unitId] : [])]), [placedUnitIds, elements]);
-  const statusCounts = useMemo(() => ({ available: elements.filter((element) => element.status === "AVAILABLE").length, reserved: elements.filter((element) => ["RESERVED", "HELD"].includes(element.status || "")).length, occupied: elements.filter((element) => element.status === "OCCUPIED").length, service: elements.filter((element) => ["SERVICE", "UNAVAILABLE"].includes(element.status || "")).length }), [elements]);
+  const dragRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const resizeRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const facility = facilities.find((item) => item.id === facilityId);
+  const selected = elements.find((item) => item.id === selectedId);
+  const maps = facility?.maps ?? [];
+  const currentMap = maps.find((map) => map.name === floorName);
+  const placedUnitIds = useMemo(
+    () =>
+      new Set(
+        facilities.flatMap((item) =>
+          item.maps.flatMap(
+            (map) =>
+              map.elements
+                .map((element) => element.unitId)
+                .filter(Boolean) as string[],
+          ),
+        ),
+      ),
+    [facilities],
+  );
+  const unavailableUnitIds = useMemo(
+    () =>
+      new Set([
+        ...placedUnitIds,
+        ...elements.flatMap((element) =>
+          element.unitId ? [element.unitId] : [],
+        ),
+      ]),
+    [placedUnitIds, elements],
+  );
+  const statusCounts = useMemo(
+    () => ({
+      available: elements.filter((element) => element.status === "AVAILABLE")
+        .length,
+      reserved: elements.filter((element) =>
+        ["RESERVED", "HELD"].includes(element.status || ""),
+      ).length,
+      occupied: elements.filter((element) => element.status === "OCCUPIED")
+        .length,
+      service: elements.filter((element) =>
+        ["SERVICE", "UNAVAILABLE"].includes(element.status || ""),
+      ).length,
+    }),
+    [elements],
+  );
 
-  const load = useCallback(async (preferredFacility?: string, preferredFloor?: string, preserveSelection = false) => {
-    const response = await fetch("/api/v1/facility-map", { cache: "no-store" }); const payload = await response.json(); if (!response.ok) { setError(payload.error?.message ?? "Layouts could not be loaded."); return; }
-    setFacilities(payload.data); const nextFacilityId = preferredFacility || facilityId || payload.data[0]?.id || ""; setFacilityId(nextFacilityId); const nextFacility = payload.data.find((item: Facility) => item.id === nextFacilityId);
-    const nextFloor = preferredFloor || floorName || nextFacility?.maps[0]?.name || "Ground floor"; setFloorName(nextFloor); hydrate(nextFacility?.maps.find((map: MapRecord) => map.name === nextFloor), preserveSelection); setLastUpdated(new Date());
-  }, [facilityId, floorName]);
-  useEffect(() => { let active = true; fetch("/api/v1/facility-map", { cache: "no-store" }).then(async (response) => ({ response, payload: await response.json() })).then(({ response, payload }) => { if (!active) return; if (!response.ok) { setError(payload.error?.message ?? "Layouts could not be loaded."); return; } const nextFacility: Facility | undefined = payload.data[0]; const nextFloor = nextFacility?.maps[0]?.name || "Ground floor"; setFacilities(payload.data); setFacilityId(nextFacility?.id || ""); setFloorName(nextFloor); hydrate(nextFacility?.maps[0]); }); return () => { active = false; }; }, []);
-  useEffect(() => { if (mode !== "live" || !facilityId) return; const interval = window.setInterval(() => { void load(facilityId, floorName, true); }, 15000); return () => window.clearInterval(interval); }, [mode, facilityId, floorName, load]);
-  useEffect(() => { const handler = (event: KeyboardEvent) => { if (!selectedId || mode !== "build" || ["INPUT", "SELECT", "TEXTAREA"].includes((event.target as HTMLElement).tagName)) return; const directions: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, -10], ArrowDown: [0, 10] }; const direction = directions[event.key]; if (!direction) return; event.preventDefault(); const step = event.shiftKey ? 1 : 10; setElements((items) => items.map((item) => item.id === selectedId ? { ...item, x: Math.max(0, item.x + Math.sign(direction[0]) * step), y: Math.max(0, item.y + Math.sign(direction[1]) * step) } : item)); setDirty(true); }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler); }, [selectedId, mode]);
+  const load = useCallback(
+    async (
+      preferredFacility?: string,
+      preferredFloor?: string,
+      preserveSelection = false,
+    ) => {
+      const response = await fetch("/api/v1/facility-map", {
+        cache: "no-store",
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload.error?.message ?? "Layouts could not be loaded.");
+        return;
+      }
+      setFacilities(payload.data);
+      const nextFacilityId =
+        preferredFacility || facilityId || payload.data[0]?.id || "";
+      setFacilityId(nextFacilityId);
+      const nextFacility = payload.data.find(
+        (item: Facility) => item.id === nextFacilityId,
+      );
+      const nextFloor =
+        preferredFloor ||
+        floorName ||
+        nextFacility?.maps[0]?.name ||
+        "Ground floor";
+      setFloorName(nextFloor);
+      hydrate(
+        nextFacility?.maps.find((map: MapRecord) => map.name === nextFloor),
+        preserveSelection,
+      );
+      setLastUpdated(new Date());
+    },
+    [facilityId, floorName],
+  );
+  useEffect(() => {
+    let active = true;
+    fetch("/api/v1/facility-map", { cache: "no-store" })
+      .then(async (response) => ({ response, payload: await response.json() }))
+      .then(({ response, payload }) => {
+        if (!active) return;
+        if (!response.ok) {
+          setError(payload.error?.message ?? "Layouts could not be loaded.");
+          return;
+        }
+        const nextFacility: Facility | undefined = payload.data[0];
+        const nextFloor = nextFacility?.maps[0]?.name || "Ground floor";
+        setFacilities(payload.data);
+        setFacilityId(nextFacility?.id || "");
+        setFloorName(nextFloor);
+        hydrate(nextFacility?.maps[0]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (mode !== "live" || !facilityId) return;
+    const interval = window.setInterval(() => {
+      void load(facilityId, floorName, true);
+    }, 15000);
+    return () => window.clearInterval(interval);
+  }, [mode, facilityId, floorName, load]);
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (
+        !selectedId ||
+        mode !== "build" ||
+        ["INPUT", "SELECT", "TEXTAREA"].includes(
+          (event.target as HTMLElement).tagName,
+        )
+      )
+        return;
+      const directions: Record<string, [number, number]> = {
+        ArrowLeft: [-10, 0],
+        ArrowRight: [10, 0],
+        ArrowUp: [0, -10],
+        ArrowDown: [0, 10],
+      };
+      const direction = directions[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      const step = event.shiftKey ? 1 : 10;
+      setElements((items) =>
+        items.map((item) =>
+          item.id === selectedId
+            ? {
+                ...item,
+                x: Math.max(0, item.x + Math.sign(direction[0]) * step),
+                y: Math.max(0, item.y + Math.sign(direction[1]) * step),
+              }
+            : item,
+        ),
+      );
+      setDirty(true);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [selectedId, mode]);
 
   function hydrate(map?: MapRecord, preserveSelection = false) {
-    setCanvasSize(map ? { width: Math.max(map.width, defaultCanvasSize.width), height: Math.max(map.height, defaultCanvasSize.height) } : defaultCanvasSize);
-    setElements(map?.elements.map((element) => ({ id: element.id, unitId: element.unitId ?? undefined, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label || element.unit?.number || element.type, status: element.unit?.status, unitDetails: element.unit ?? undefined })) ?? []); if (!preserveSelection) setSelectedId(""); setDirty(false);
+    setCanvasSize(
+      map
+        ? {
+            width: Math.max(map.width, defaultCanvasSize.width),
+            height: Math.max(map.height, defaultCanvasSize.height),
+          }
+        : defaultCanvasSize,
+    );
+    setElements(
+      map?.elements.map((element) => ({
+        id: element.id,
+        unitId: element.unitId ?? undefined,
+        type: element.type,
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        rotation: element.rotation,
+        label: element.label || element.unit?.number || element.type,
+        status: element.unit?.status,
+        unitDetails: element.unit ?? undefined,
+      })) ?? [],
+    );
+    if (!preserveSelection) setSelectedId("");
+    setDirty(false);
   }
-  function selectFacility(nextId: string) { if (dirty && !confirm("Discard unsaved layout changes?")) return; const next = facilities.find((item) => item.id === nextId); const nextFloor = next?.maps[0]?.name || "Ground floor"; setFacilityId(nextId); setFloorName(nextFloor); hydrate(next?.maps[0]); }
-  function selectFloor(nextFloor: string) { if (dirty && !confirm("Discard unsaved layout changes?")) return; setFloorName(nextFloor); hydrate(maps.find((map) => map.name === nextFloor)); }
-  function addFloor() { const name = prompt("Name this floor or layout", `Floor ${maps.length + 1}`)?.trim(); if (!name || maps.some((map) => map.name.toLowerCase() === name.toLowerCase())) return; setFloorName(name); hydrate(); setDirty(true); }
-  function addShape(type: Exclude<ElementType, "UNIT">) { const defaults = elementDefaults[type]; const element = { id: freshId(), type, x: 80, y: 80, rotation: 0, ...defaults }; setElements((items) => [...items, element]); setSelectedId(element.id); setDirty(true); }
-  function patchElement(id: string, patch: Partial<CanvasElement>) { setElements((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item)); setDirty(true); }
-  function nudgeSelected(dx: number, dy: number) { if (!selected) return; patchElement(selected.id, { x: Math.max(0, selected.x + dx), y: Math.max(0, selected.y + dy) }); }
-  function removeSelected() { if (!selected) return; setElements((items) => items.filter((item) => item.id !== selected.id)); setSelectedId(""); setDirty(true); }
-  function placeUnit(unit: Unit | null, draft?: DraftUnit) { const label = unit?.number || draft?.number || "Unit"; const type = facility?.unitTypes.find((item) => item.id === (unit?.unitTypeId || draft?.unitTypeId)); const scale = 45; const width = type?.widthMetres ? Math.max(40, Number(type.widthMetres) * scale) : 100; const height = type?.lengthMetres ? Math.max(40, Number(type.lengthMetres) * scale) : 90; const element: CanvasElement = { id: freshId(), unitId: unit?.id, unit: draft, type: "UNIT", x: 100, y: 100, width: snap(width), height: snap(height), rotation: 0, label, status: unit?.status || "AVAILABLE" }; setElements((items) => [...items, element]); setSelectedId(element.id); setUnitDialog(false); setDirty(true); }
+  function selectFacility(nextId: string) {
+    if (dirty && !confirm("Discard unsaved layout changes?")) return;
+    const next = facilities.find((item) => item.id === nextId);
+    const nextFloor = next?.maps[0]?.name || "Ground floor";
+    setFacilityId(nextId);
+    setFloorName(nextFloor);
+    hydrate(next?.maps[0]);
+  }
+  function selectFloor(nextFloor: string) {
+    if (dirty && !confirm("Discard unsaved layout changes?")) return;
+    setFloorName(nextFloor);
+    hydrate(maps.find((map) => map.name === nextFloor));
+  }
+  function addFloor() {
+    const name = prompt(
+      "Name this floor or layout",
+      `Floor ${maps.length + 1}`,
+    )?.trim();
+    if (
+      !name ||
+      maps.some((map) => map.name.toLowerCase() === name.toLowerCase())
+    )
+      return;
+    setFloorName(name);
+    hydrate();
+    setDirty(true);
+  }
+  function addShape(type: Exclude<ElementType, "UNIT">) {
+    const defaults = elementDefaults[type];
+    const element = {
+      id: freshId(),
+      type,
+      x: 80,
+      y: 80,
+      rotation: 0,
+      ...defaults,
+    };
+    setElements((items) => [...items, element]);
+    setSelectedId(element.id);
+    setDirty(true);
+  }
+  function patchElement(id: string, patch: Partial<CanvasElement>) {
+    setElements((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+    setDirty(true);
+  }
+  function nudgeSelected(dx: number, dy: number) {
+    if (!selected) return;
+    patchElement(selected.id, {
+      x: Math.max(0, selected.x + dx),
+      y: Math.max(0, selected.y + dy),
+    });
+  }
+  function rotateSelected() {
+    if (!selected) return;
+    patchElement(selected.id, { rotation: (selected.rotation + 90) % 360 });
+  }
+  function removeSelected() {
+    if (!selected) return;
+    setElements((items) => items.filter((item) => item.id !== selected.id));
+    setSelectedId("");
+    setDirty(true);
+  }
+  function placeUnit(unit: Unit | null, draft?: DraftUnit) {
+    const label = unit?.number || draft?.number || "Unit";
+    const type = facility?.unitTypes.find(
+      (item) => item.id === (unit?.unitTypeId || draft?.unitTypeId),
+    );
+    const scale = 45;
+    const width = type?.widthMetres
+      ? Math.max(40, Number(type.widthMetres) * scale)
+      : 100;
+    const height = type?.lengthMetres
+      ? Math.max(40, Number(type.lengthMetres) * scale)
+      : 90;
+    const element: CanvasElement = {
+      id: freshId(),
+      unitId: unit?.id,
+      unit: draft,
+      type: "UNIT",
+      x: 100,
+      y: 100,
+      width: snap(width),
+      height: snap(height),
+      rotation: 0,
+      label,
+      status: unit?.status || "AVAILABLE",
+    };
+    setElements((items) => [...items, element]);
+    setSelectedId(element.id);
+    setUnitDialog(false);
+    setDirty(true);
+  }
 
   async function save() {
-    if (!facilityId || !floorName) return; setBusy(true); setError(""); setNotice("");
-    const response = await fetch("/api/v1/facility-map", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ facilityId, name: floorName, ...canvasSize, elements: elements.map((element) => ({ ...element, status: undefined, unitDetails: undefined })) }) });
-    const payload = await response.json().catch(() => ({})); setBusy(false); if (!response.ok) { setError(payload.error?.message ?? (response.status === 409 ? "A unit number is duplicated or already placed on another floor." : "The layout could not be saved.")); return; }
-    setNotice(`${floorName} saved to ${facility?.name}.`); await load(facilityId, floorName);
+    if (!facilityId || !floorName) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const response = await fetch("/api/v1/facility-map", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        facilityId,
+        name: floorName,
+        ...canvasSize,
+        elements: elements.map((element) => ({
+          ...element,
+          status: undefined,
+          unitDetails: undefined,
+        })),
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(
+        payload.error?.message ??
+          (response.status === 409
+            ? "A unit number is duplicated or already placed on another floor."
+            : "The layout could not be saved."),
+      );
+      return;
+    }
+    setNotice(`${floorName} saved to ${facility?.name}.`);
+    await load(facilityId, floorName);
   }
 
-  return <div className={`page-stack map-editor-workspace ${expanded ? "map-editor-expanded" : ""}`}>
-    <PageHeader eyebrow="Visual inventory" title={mode === "build" ? "Facility map builder" : "Live facility map"} description={mode === "build" ? "Draw and save a separate interactive unit layout for every store and floor." : "Read-only operational view showing the current status of every mapped unit."} action={<div className="form-actions"><button className="button button-secondary" onClick={() => setExpanded((value) => !value)}>{expanded ? <Minimize2 size={16}/> : <Maximize2 size={16}/>} {expanded ? "Exit large workspace" : "Large workspace"}</button>{mode === "build" ? <button className="button button-primary" onClick={save} disabled={!dirty || busy}><Save size={16}/>{busy ? "Saving…" : "Save layout"}</button> : null}</div>}/>
-    {error ? <p className="form-error">{error}</p> : null}{notice ? <p className="form-success">{notice}</p> : null}
-    <section className="panel map-editor-header"><div className="map-mode-switch"><button className={mode === "build" ? "active" : ""} onClick={() => setMode("build")}><Pencil size={14}/>Build layout</button><button className={mode === "live" ? "active" : ""} onClick={() => { if (dirty && !confirm("Open live view and discard unsaved changes?")) return; setMode("live"); void load(facilityId, floorName); }}><Eye size={14}/>Live view</button></div><label>Store<select value={facilityId} onChange={(event) => selectFacility(event.target.value)}>{facilities.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Floor / layout<select value={floorName} onChange={(event) => selectFloor(event.target.value)}>{maps.map((map) => <option value={map.name} key={map.id}>{map.name}</option>)}{!currentMap && floorName ? <option value={floorName}>{floorName} — unsaved</option> : null}</select></label>{mode === "build" ? <button className="button button-secondary" onClick={addFloor}><Plus size={15}/>Add floor</button> : null}<span className="map-save-state">{mode === "live" ? "Operational status" : dirty ? "Unsaved changes" : currentMap ? "Saved" : "New layout"}</span></section>
-    <section className={`map-editor-shell ${mode === "live" ? "map-live-shell" : ""}`}>{mode === "build" ? <aside className="panel map-toolbox"><h2>Toolbox</h2><Tool icon={<MousePointer2/>} label="Select"/><Tool icon={<Box/>} label="Unit" action={() => setUnitDialog(true)} draggable/><Tool icon={<SquareDashed/>} label="Zone" action={() => addShape("ZONE")} draggable/><Tool icon={<Grid3X3/>} label="Wall" action={() => addShape("WALL")} draggable/><Tool icon={<DoorOpen/>} label="Door / gate" action={() => addShape("DOOR")} draggable/><Tool icon={<Type/>} label="Label" action={() => addShape("LABEL")} draggable/><hr/><Link href="/units" className="map-tool-link"><Warehouse size={16}/>Manage unit types</Link></aside> : <aside className="panel map-legend"><h2>Unit status</h2>{[["available","Available"],["reserved","Reserved / held"],["occupied","Occupied"],["service","Service / unavailable"]].map(([tone,label]) => <div key={tone}><i className={`map-legend-${tone}`}/><span>{label}</span><strong>{statusCounts[tone as keyof typeof statusCounts]}</strong></div>)}<small>Updates automatically every 15 seconds{lastUpdated ? ` · ${lastUpdated.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}</small></aside>}
-      <div className="panel map-stage"><div className="map-stage-toolbar"><span>{floorName || "Layout"}</span><div><button onClick={() => setZoom((value) => Math.max(.4, value - .1))}><ZoomOut size={15}/></button><b>{Math.round(zoom * 100)}%</b><button onClick={() => setZoom((value) => Math.min(1.5, value + .1))}><ZoomIn size={15}/></button></div></div><div className="map-scroll"><div className="map-canvas" style={{ width: canvasSize.width, height: canvasSize.height, transform: `scale(${zoom})`, transformOrigin: "top left" }} onClick={() => setSelectedId("")} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const type = event.dataTransfer.getData("application/map-tool") as ElementType; if (type === "UNIT") setUnitDialog(true); else if (type) addShape(type); }}>
-        {elements.map((element) => <div key={element.id} className={`map-editor-element map-editor-${element.type.toLowerCase()} ${selectedId === element.id ? "selected" : ""} ${element.status ? `map-status-${element.status.toLowerCase()}` : ""} ${mode === "live" ? "live" : ""}`} style={{ left: element.x, top: element.y, width: element.width, height: element.height, transform: `rotate(${element.rotation}deg)` }} onClick={(event) => { event.stopPropagation(); setSelectedId(element.id); }} onPointerDown={(event) => { if (mode !== "build" || (event.target as HTMLElement).classList.contains("map-resize-handle")) return; dragRef.current = { id: element.id, startX: event.clientX, startY: event.clientY, x: element.x, y: element.y }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const drag = dragRef.current; if (mode === "build" && drag?.id === element.id && event.buttons) patchElement(element.id, { x: snap(drag.x + (event.clientX - drag.startX) / zoom), y: snap(drag.y + (event.clientY - drag.startY) / zoom) }); }} onPointerUp={() => { dragRef.current = null; }}><span>{element.label}</span>{element.type === "UNIT" ? <small>{element.status?.toLowerCase()}</small> : null}{mode === "build" ? <i className="map-resize-handle" onPointerDown={(event) => { event.stopPropagation(); resizeRef.current = { id: element.id, startX: event.clientX, startY: event.clientY, width: element.width, height: element.height }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const resize = resizeRef.current; if (resize?.id === element.id && event.buttons) patchElement(element.id, { width: Math.max(30, snap(resize.width + (event.clientX - resize.startX) / zoom)), height: Math.max(20, snap(resize.height + (event.clientY - resize.startY) / zoom)) }); }} onPointerUp={() => { resizeRef.current = null; }}/>: null}</div>)}
-        {!elements.length ? <div className="map-canvas-empty"><Grid3X3 size={35}/><strong>Start building {floorName}</strong><p>Drag a tool here or click Unit, Zone, Wall, Door or Label.</p></div> : null}</div></div></div>
-      {mode === "build" ? <aside className="panel map-properties"><h2>Properties</h2>{selected ? <><label>Label<input value={selected.label} onChange={(event) => patchElement(selected.id, { label: event.target.value })}/></label><div className="map-nudge"><button onClick={() => nudgeSelected(0,-10)}><ArrowUp/></button><button onClick={() => nudgeSelected(-10,0)}><ArrowLeft/></button><button onClick={() => nudgeSelected(0,10)}><ArrowDown/></button><button onClick={() => nudgeSelected(10,0)}><ArrowRight/></button></div><small className="map-nudge-help">Arrow keys move 10 px · Shift + arrow moves 1 px</small><div className="map-property-grid"><label>X<input type="number" value={selected.x} onChange={(event) => patchElement(selected.id, { x: snap(Number(event.target.value)) })}/></label><label>Y<input type="number" value={selected.y} onChange={(event) => patchElement(selected.id, { y: snap(Number(event.target.value)) })}/></label><label>Width<input type="number" value={selected.width} onChange={(event) => patchElement(selected.id, { width: Math.max(10, Number(event.target.value)) })}/></label><label>Height<input type="number" value={selected.height} onChange={(event) => patchElement(selected.id, { height: Math.max(10, Number(event.target.value)) })}/></label></div>{selected.type === "UNIT" ? <p className="map-property-note"><Tag size={14}/>{selected.status || "Draft unit"}</p> : null}<button className="button button-danger" onClick={removeSelected}><Trash2 size={15}/>Remove from layout</button></> : <div className="empty-cell">Select an element to edit it. You can also use the keyboard arrow keys.</div>}</aside> : <aside className="panel map-live-details"><h2>Unit details</h2>{selected?.unitDetails ? <><div><span>Unit</span><strong>{selected.unitDetails.number}</strong></div><div><span>Status</span><strong>{selected.unitDetails.status.toLowerCase().replaceAll("_", " ")}</strong></div><div><span>Type</span><strong>{selected.unitDetails.unitType.name}</strong></div><div><span>Size</span><strong>{[selected.unitDetails.unitType.widthMetres, selected.unitDetails.unitType.lengthMetres].filter(Boolean).join(" × ") || "—"} m</strong></div><div><span>Monthly rate</span><strong>{Number(selected.unitDetails.monthlyRate).toLocaleString("en-ZA", { style: "currency", currency: "ZAR" })}</strong></div><Link href="/units" className="button button-secondary">Open unit record</Link>{selected.unitDetails.status === "AVAILABLE" ? <Link href="/reservations" className="button button-primary">Reserve this unit</Link> : null}</> : <div className="empty-cell">Select a mapped unit to see its live operational record.</div>}</aside>}
-    </section>{unitDialog && facility ? <UnitPlacementDialog facility={facility} placedUnitIds={unavailableUnitIds} floorName={floorName} draftNumbers={elements.flatMap((element) => element.unit ? [element.unit.number] : [])} close={() => setUnitDialog(false)} place={placeUnit}/> : null}
-  </div>;
+  return (
+    <div
+      className={`page-stack map-editor-workspace ${expanded ? "map-editor-expanded" : ""}`}
+    >
+      <PageHeader
+        eyebrow="Visual inventory"
+        title={mode === "build" ? "Facility map builder" : "Live facility map"}
+        description={
+          mode === "build"
+            ? "Draw and save a separate interactive unit layout for every store and floor."
+            : "Read-only operational view showing the current status of every mapped unit."
+        }
+        action={
+          <div className="form-actions">
+            <button
+              className="button button-secondary"
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}{" "}
+              {expanded ? "Exit large workspace" : "Large workspace"}
+            </button>
+            {mode === "build" ? (
+              <button
+                className="button button-primary"
+                onClick={save}
+                disabled={!dirty || busy}
+              >
+                <Save size={16} />
+                {busy ? "Saving…" : "Save layout"}
+              </button>
+            ) : null}
+          </div>
+        }
+      />
+      {error ? <p className="form-error">{error}</p> : null}
+      {notice ? <p className="form-success">{notice}</p> : null}
+      <section className="panel map-editor-header">
+        <div className="map-mode-switch">
+          <button
+            className={mode === "build" ? "active" : ""}
+            onClick={() => setMode("build")}
+          >
+            <Pencil size={14} />
+            Build layout
+          </button>
+          <button
+            className={mode === "live" ? "active" : ""}
+            onClick={() => {
+              if (
+                dirty &&
+                !confirm("Open live view and discard unsaved changes?")
+              )
+                return;
+              setMode("live");
+              void load(facilityId, floorName);
+            }}
+          >
+            <Eye size={14} />
+            Live view
+          </button>
+        </div>
+        <label>
+          Store
+          <select
+            value={facilityId}
+            onChange={(event) => selectFacility(event.target.value)}
+          >
+            {facilities.map((item) => (
+              <option value={item.id} key={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Floor / layout
+          <select
+            value={floorName}
+            onChange={(event) => selectFloor(event.target.value)}
+          >
+            {maps.map((map) => (
+              <option value={map.name} key={map.id}>
+                {map.name}
+              </option>
+            ))}
+            {!currentMap && floorName ? (
+              <option value={floorName}>{floorName} — unsaved</option>
+            ) : null}
+          </select>
+        </label>
+        {mode === "build" ? (
+          <button className="button button-secondary" onClick={addFloor}>
+            <Plus size={15} />
+            Add floor
+          </button>
+        ) : null}
+        <span className="map-save-state">
+          {mode === "live"
+            ? "Operational status"
+            : dirty
+              ? "Unsaved changes"
+              : currentMap
+                ? "Saved"
+                : "New layout"}
+        </span>
+      </section>
+      <section
+        className={`map-editor-shell ${mode === "live" ? "map-live-shell" : ""}`}
+      >
+        {mode === "build" ? (
+          <aside className="panel map-toolbox">
+            <h2>Toolbox</h2>
+            <Tool icon={<MousePointer2 />} label="Select" />
+            <Tool
+              icon={<Box />}
+              label="Unit"
+              action={() => setUnitDialog(true)}
+              draggable
+            />
+            <Tool
+              icon={<SquareDashed />}
+              label="Zone"
+              action={() => addShape("ZONE")}
+              draggable
+            />
+            <Tool
+              icon={<Grid3X3 />}
+              label="Wall"
+              action={() => addShape("WALL")}
+              draggable
+            />
+            <Tool
+              icon={<DoorOpen />}
+              label="Door / gate"
+              action={() => addShape("DOOR")}
+              draggable
+            />
+            <Tool
+              icon={<Square />}
+              label="Window"
+              action={() => addShape("WINDOW")}
+              draggable
+            />
+            <Tool
+              icon={<Type />}
+              label="Label"
+              action={() => addShape("LABEL")}
+              draggable
+            />
+            <hr />
+            <Link href="/units" className="map-tool-link">
+              <Warehouse size={16} />
+              Manage unit types
+            </Link>
+          </aside>
+        ) : (
+          <aside className="panel map-legend">
+            <h2>Unit status</h2>
+            {[
+              ["available", "Available"],
+              ["reserved", "Reserved / held"],
+              ["occupied", "Occupied"],
+              ["service", "Service / unavailable"],
+            ].map(([tone, label]) => (
+              <div key={tone}>
+                <i className={`map-legend-${tone}`} />
+                <span>{label}</span>
+                <strong>
+                  {statusCounts[tone as keyof typeof statusCounts]}
+                </strong>
+              </div>
+            ))}
+            <small>
+              Updates automatically every 15 seconds
+              {lastUpdated
+                ? ` · ${lastUpdated.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`
+                : ""}
+            </small>
+          </aside>
+        )}
+        <div className="panel map-stage">
+          <div className="map-stage-toolbar">
+            <span>{floorName || "Layout"}</span>
+            <div>
+              <button
+                onClick={() => setZoom((value) => Math.max(0.4, value - 0.1))}
+              >
+                <ZoomOut size={15} />
+              </button>
+              <b>{Math.round(zoom * 100)}%</b>
+              <button
+                onClick={() => setZoom((value) => Math.min(1.5, value + 0.1))}
+              >
+                <ZoomIn size={15} />
+              </button>
+            </div>
+          </div>
+          <div className="map-scroll">
+            <div
+              className="map-canvas"
+              style={{
+                width: canvasSize.width,
+                height: canvasSize.height,
+                transform: `scale(${zoom})`,
+                transformOrigin: "top left",
+              }}
+              onClick={() => setSelectedId("")}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                const type = event.dataTransfer.getData(
+                  "application/map-tool",
+                ) as ElementType;
+                if (type === "UNIT") setUnitDialog(true);
+                else if (type) addShape(type);
+              }}
+            >
+              {elements.map((element) => (
+                <div
+                  key={element.id}
+                  className={`map-editor-element map-editor-${element.type.toLowerCase()} ${selectedId === element.id ? "selected" : ""} ${element.status ? `map-status-${element.status.toLowerCase()}` : ""} ${mode === "live" ? "live" : ""}`}
+                  style={{
+                    left: element.x,
+                    top: element.y,
+                    width: element.width,
+                    height: element.height,
+                    transform: `rotate(${element.rotation}deg)`,
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedId(element.id);
+                  }}
+                  onPointerDown={(event) => {
+                    if (
+                      mode !== "build" ||
+                      (event.target as HTMLElement).classList.contains(
+                        "map-resize-handle",
+                      )
+                    )
+                      return;
+                    dragRef.current = {
+                      id: element.id,
+                      startX: event.clientX,
+                      startY: event.clientY,
+                      x: element.x,
+                      y: element.y,
+                    };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                  }}
+                  onPointerMove={(event) => {
+                    const drag = dragRef.current;
+                    if (
+                      mode === "build" &&
+                      drag?.id === element.id &&
+                      event.buttons
+                    )
+                      patchElement(element.id, {
+                        x: snap(drag.x + (event.clientX - drag.startX) / zoom),
+                        y: snap(drag.y + (event.clientY - drag.startY) / zoom),
+                      });
+                  }}
+                  onPointerUp={() => {
+                    dragRef.current = null;
+                  }}
+                >
+                  <span>{element.label}</span>
+                  {element.type === "UNIT" ? (
+                    <small>{element.status?.toLowerCase()}</small>
+                  ) : null}
+                  {mode === "build" ? (
+                    <i
+                      className="map-resize-handle"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        resizeRef.current = {
+                          id: element.id,
+                          startX: event.clientX,
+                          startY: event.clientY,
+                          width: element.width,
+                          height: element.height,
+                        };
+                        event.currentTarget.setPointerCapture(event.pointerId);
+                      }}
+                      onPointerMove={(event) => {
+                        const resize = resizeRef.current;
+                        if (resize?.id === element.id && event.buttons)
+                          patchElement(element.id, {
+                            width: Math.max(
+                              30,
+                              snap(
+                                resize.width +
+                                  (event.clientX - resize.startX) / zoom,
+                              ),
+                            ),
+                            height: Math.max(
+                              20,
+                              snap(
+                                resize.height +
+                                  (event.clientY - resize.startY) / zoom,
+                              ),
+                            ),
+                          });
+                      }}
+                      onPointerUp={() => {
+                        resizeRef.current = null;
+                      }}
+                    />
+                  ) : null}
+                </div>
+              ))}
+              {!elements.length ? (
+                <div className="map-canvas-empty">
+                  <Grid3X3 size={35} />
+                  <strong>Start building {floorName}</strong>
+                  <p>
+                    Drag a tool here or click Unit, Zone, Wall, Door or Label.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        {mode === "build" ? (
+          <aside className="panel map-properties">
+            <h2>Properties</h2>
+            {selected ? (
+              <>
+                <label>
+                  Label
+                  <input
+                    value={selected.label}
+                    onChange={(event) =>
+                      patchElement(selected.id, { label: event.target.value })
+                    }
+                  />
+                </label>
+                <div className="map-nudge">
+                  <button onClick={() => nudgeSelected(0, -10)}>
+                    <ArrowUp />
+                  </button>
+                  <button onClick={() => nudgeSelected(-10, 0)}>
+                    <ArrowLeft />
+                  </button>
+                  <button onClick={() => nudgeSelected(0, 10)}>
+                    <ArrowDown />
+                  </button>
+                  <button onClick={() => nudgeSelected(10, 0)}>
+                    <ArrowRight />
+                  </button>
+                </div>
+                {["WALL", "DOOR", "WINDOW"].includes(selected.type) ? (
+                  <button
+                    type="button"
+                    className="map-rotate-button"
+                    onClick={rotateSelected}
+                  >
+                    <RotateCw size={15} /> Rotate 90°
+                  </button>
+                ) : null}
+                <small className="map-nudge-help">
+                  Arrow keys move 10 px · Shift + arrow moves 1 px
+                </small>
+                <div className="map-property-grid">
+                  <label>
+                    X
+                    <input
+                      type="number"
+                      value={selected.x}
+                      onChange={(event) =>
+                        patchElement(selected.id, {
+                          x: snap(Number(event.target.value)),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Y
+                    <input
+                      type="number"
+                      value={selected.y}
+                      onChange={(event) =>
+                        patchElement(selected.id, {
+                          y: snap(Number(event.target.value)),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Width
+                    <input
+                      type="number"
+                      value={selected.width}
+                      onChange={(event) =>
+                        patchElement(selected.id, {
+                          width: Math.max(10, Number(event.target.value)),
+                        })
+                      }
+                    />
+                  </label>
+                  <label>
+                    Height
+                    <input
+                      type="number"
+                      value={selected.height}
+                      onChange={(event) =>
+                        patchElement(selected.id, {
+                          height: Math.max(10, Number(event.target.value)),
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+                {selected.type === "UNIT" ? (
+                  <p className="map-property-note">
+                    <Tag size={14} />
+                    {selected.status || "Draft unit"}
+                  </p>
+                ) : null}
+                <button
+                  className="button button-danger"
+                  onClick={removeSelected}
+                >
+                  <Trash2 size={15} />
+                  Remove from layout
+                </button>
+              </>
+            ) : (
+              <div className="empty-cell">
+                Select an element to edit it. You can also use the keyboard
+                arrow keys.
+              </div>
+            )}
+          </aside>
+        ) : (
+          <aside className="panel map-live-details">
+            <h2>Unit details</h2>
+            {selected?.unitDetails ? (
+              <>
+                <div>
+                  <span>Unit</span>
+                  <strong>{selected.unitDetails.number}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>
+                    {selected.unitDetails.status
+                      .toLowerCase()
+                      .replaceAll("_", " ")}
+                  </strong>
+                </div>
+                <div>
+                  <span>Type</span>
+                  <strong>{selected.unitDetails.unitType.name}</strong>
+                </div>
+                <div>
+                  <span>Size</span>
+                  <strong>
+                    {[
+                      selected.unitDetails.unitType.widthMetres,
+                      selected.unitDetails.unitType.lengthMetres,
+                    ]
+                      .filter(Boolean)
+                      .join(" × ") || "—"}{" "}
+                    m
+                  </strong>
+                </div>
+                <div>
+                  <span>Monthly rate</span>
+                  <strong>
+                    {Number(selected.unitDetails.monthlyRate).toLocaleString(
+                      "en-ZA",
+                      { style: "currency", currency: "ZAR" },
+                    )}
+                  </strong>
+                </div>
+                <Link href="/units" className="button button-secondary">
+                  Open unit record
+                </Link>
+                {selected.unitDetails.status === "AVAILABLE" ? (
+                  <Link href="/reservations" className="button button-primary">
+                    Reserve this unit
+                  </Link>
+                ) : null}
+              </>
+            ) : (
+              <div className="empty-cell">
+                Select a mapped unit to see its live operational record.
+              </div>
+            )}
+          </aside>
+        )}
+      </section>
+      {unitDialog && facility ? (
+        <UnitPlacementDialog
+          facility={facility}
+          placedUnitIds={unavailableUnitIds}
+          floorName={floorName}
+          draftNumbers={elements.flatMap((element) =>
+            element.unit ? [element.unit.number] : [],
+          )}
+          close={() => setUnitDialog(false)}
+          place={placeUnit}
+        />
+      ) : null}
+    </div>
+  );
 }
 
-function Tool({ icon, label, action, draggable }: { icon: React.ReactNode; label: string; action?: () => void; draggable?: boolean }) { return <button type="button" onClick={action} draggable={draggable} onDragStart={(event) => event.dataTransfer.setData("application/map-tool", label === "Door / gate" ? "DOOR" : label.toUpperCase())}>{icon}<span>{label}</span></button>; }
+function Tool({
+  icon,
+  label,
+  action,
+  draggable,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  action?: () => void;
+  draggable?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={action}
+      draggable={draggable}
+      onDragStart={(event) =>
+        event.dataTransfer.setData(
+          "application/map-tool",
+          label === "Door / gate" ? "DOOR" : label.toUpperCase(),
+        )
+      }
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
 
 function unitTypeSummary(type?: UnitType) {
   if (!type) return "";
-  const area = type.areaSqMetres || (type.widthMetres && type.lengthMetres ? String(Math.round(Number(type.widthMetres) * Number(type.lengthMetres))) : "");
-  const dimensions = [type.widthMetres, type.lengthMetres].filter(Boolean).join(" × ");
+  const area =
+    type.areaSqMetres ||
+    (type.widthMetres && type.lengthMetres
+      ? String(Math.round(Number(type.widthMetres) * Number(type.lengthMetres)))
+      : "");
+  const dimensions = [type.widthMetres, type.lengthMetres]
+    .filter(Boolean)
+    .join(" × ");
   return `${area ? `${area} m²` : "Area not set"}${dimensions ? ` · ${dimensions} m` : ""}`;
 }
 
-function UnitPlacementDialog({ facility, placedUnitIds, floorName, draftNumbers, close, place }: { facility: Facility; placedUnitIds: Set<string>; floorName: string; draftNumbers: string[]; close: () => void; place: (unit: Unit | null, draft?: DraftUnit) => void }) {
-  const [mode, setMode] = useState<"existing" | "new">(facility.units.some((unit) => !placedUnitIds.has(unit.id)) ? "existing" : "new"); const availableUnits = facility.units.filter((unit) => !placedUnitIds.has(unit.id));
+function UnitPlacementDialog({
+  facility,
+  placedUnitIds,
+  floorName,
+  draftNumbers,
+  close,
+  place,
+}: {
+  facility: Facility;
+  placedUnitIds: Set<string>;
+  floorName: string;
+  draftNumbers: string[];
+  close: () => void;
+  place: (unit: Unit | null, draft?: DraftUnit) => void;
+}) {
+  const [mode, setMode] = useState<"existing" | "new">(
+    facility.units.some((unit) => !placedUnitIds.has(unit.id))
+      ? "existing"
+      : "new",
+  );
+  const availableUnits = facility.units.filter(
+    (unit) => !placedUnitIds.has(unit.id),
+  );
   const [error, setError] = useState("");
-  const [selectedTypeId, setSelectedTypeId] = useState(facility.unitTypes[0]?.id || "");
-  const [selectedUnitId, setSelectedUnitId] = useState(availableUnits[0]?.id || "");
-  const selectedType = mode === "existing" ? availableUnits.find((unit) => unit.id === selectedUnitId)?.unitType : facility.unitTypes.find((type) => type.id === selectedTypeId);
-  function submit(form: FormData) { if (mode === "existing") { const unit = availableUnits.find((item) => item.id === form.get("unitId")); if (unit) place(unit); return; } const number = String(form.get("number")).trim(); if (facility.units.some((unit) => unit.number.toLowerCase() === number.toLowerCase()) || draftNumbers.some((item) => item.toLowerCase() === number.toLowerCase())) { setError(`Unit number ${number} already exists or is already waiting to be saved.`); return; } place(null, { unitTypeId: String(form.get("unitTypeId")), number, floor: floorName, zone: String(form.get("zone") || "") || undefined, monthlyRate: Number(form.get("monthlyRate")), taxRate: Number(form.get("taxRate") || 15) / 100 }); }
-  return <div className="modal-backdrop"><div className="modal-card map-unit-modal"><button className="modal-close" onClick={close}><X size={18}/></button><p className="eyebrow">Map unit</p><h2>Place a unit</h2><div className="map-unit-tabs"><button className={mode === "existing" ? "active" : ""} onClick={() => { setMode("existing"); setError(""); }} disabled={!availableUnits.length}>Existing unit</button><button className={mode === "new" ? "active" : ""} onClick={() => { setMode("new"); setError(""); }}>Create new unit</button></div><form action={submit} className="inventory-form">{mode === "existing" ? <label className="inventory-form-wide">Available unit<select name="unitId" value={selectedUnitId} onChange={(event) => setSelectedUnitId(event.target.value)} required>{availableUnits.map((unit) => <option value={unit.id} key={unit.id}>{unit.number} · {unit.unitType.name} · {unitTypeSummary(unit.unitType)} · {unit.status}</option>)}</select></label> : facility.unitTypes.length ? <><label>Unit type<select name="unitTypeId" value={selectedTypeId} onChange={(event) => setSelectedTypeId(event.target.value)} required>{facility.unitTypes.map((type) => <option value={type.id} key={type.id}>{type.name} · {unitTypeSummary(type)}</option>)}</select></label><label>Unit number<input name="number" required/></label><label>Zone / section<input name="zone"/></label><label>Monthly rate (R)<input name="monthlyRate" type="number" min="0" step=".01" required/></label><label>VAT rate (%)<input name="taxRate" type="number" defaultValue="15" step=".01"/></label></> : <p className="form-error inventory-form-wide">Create at least one unit type before placing units. <Link href="/units">Open Units & Availability</Link>.</p>}{selectedType ? <div className="map-unit-size-summary inventory-form-wide"><span>Selected size</span><strong>{unitTypeSummary(selectedType)}</strong></div> : null}{error ? <p className="form-error inventory-form-wide">{error}</p> : null}<div className="form-actions inventory-form-wide"><button type="button" className="button button-secondary" onClick={close}>Cancel</button><button className="button button-primary" disabled={mode === "new" && !facility.unitTypes.length}>Place unit</button></div></form></div></div>;
+  const [selectedTypeId, setSelectedTypeId] = useState(
+    facility.unitTypes[0]?.id || "",
+  );
+  const [selectedUnitId, setSelectedUnitId] = useState(
+    availableUnits[0]?.id || "",
+  );
+  const selectedType =
+    mode === "existing"
+      ? availableUnits.find((unit) => unit.id === selectedUnitId)?.unitType
+      : facility.unitTypes.find((type) => type.id === selectedTypeId);
+  function submit(form: FormData) {
+    if (mode === "existing") {
+      const unit = availableUnits.find(
+        (item) => item.id === form.get("unitId"),
+      );
+      if (unit) place(unit);
+      return;
+    }
+    const number = String(form.get("number")).trim();
+    if (
+      facility.units.some(
+        (unit) => unit.number.toLowerCase() === number.toLowerCase(),
+      ) ||
+      draftNumbers.some((item) => item.toLowerCase() === number.toLowerCase())
+    ) {
+      setError(
+        `Unit number ${number} already exists or is already waiting to be saved.`,
+      );
+      return;
+    }
+    place(null, {
+      unitTypeId: String(form.get("unitTypeId")),
+      number,
+      floor: floorName,
+      zone: String(form.get("zone") || "") || undefined,
+      monthlyRate: Number(form.get("monthlyRate")),
+      taxRate: Number(form.get("taxRate") || 15) / 100,
+    });
+  }
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card map-unit-modal">
+        <button className="modal-close" onClick={close}>
+          <X size={18} />
+        </button>
+        <p className="eyebrow">Map unit</p>
+        <h2>Place a unit</h2>
+        <div className="map-unit-tabs">
+          <button
+            className={mode === "existing" ? "active" : ""}
+            onClick={() => {
+              setMode("existing");
+              setError("");
+            }}
+            disabled={!availableUnits.length}
+          >
+            Existing unit
+          </button>
+          <button
+            className={mode === "new" ? "active" : ""}
+            onClick={() => {
+              setMode("new");
+              setError("");
+            }}
+          >
+            Create new unit
+          </button>
+        </div>
+        <form action={submit} className="inventory-form">
+          {mode === "existing" ? (
+            <label className="inventory-form-wide">
+              Available unit
+              <select
+                name="unitId"
+                value={selectedUnitId}
+                onChange={(event) => setSelectedUnitId(event.target.value)}
+                required
+              >
+                {availableUnits.map((unit) => (
+                  <option value={unit.id} key={unit.id}>
+                    {unit.number} · {unit.unitType.name} ·{" "}
+                    {unitTypeSummary(unit.unitType)} · {unit.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : facility.unitTypes.length ? (
+            <>
+              <label>
+                Unit type
+                <select
+                  name="unitTypeId"
+                  value={selectedTypeId}
+                  onChange={(event) => setSelectedTypeId(event.target.value)}
+                  required
+                >
+                  {facility.unitTypes.map((type) => (
+                    <option value={type.id} key={type.id}>
+                      {type.name} · {unitTypeSummary(type)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Unit number
+                <input name="number" required />
+              </label>
+              <label>
+                Zone / section
+                <input name="zone" />
+              </label>
+              <label>
+                Monthly rate (R)
+                <input
+                  name="monthlyRate"
+                  type="number"
+                  min="0"
+                  step=".01"
+                  required
+                />
+              </label>
+              <label>
+                VAT rate (%)
+                <input
+                  name="taxRate"
+                  type="number"
+                  defaultValue="15"
+                  step=".01"
+                />
+              </label>
+            </>
+          ) : (
+            <p className="form-error inventory-form-wide">
+              Create at least one unit type before placing units.{" "}
+              <Link href="/units">Open Units & Availability</Link>.
+            </p>
+          )}
+          {selectedType ? (
+            <div className="map-unit-size-summary inventory-form-wide">
+              <span>Selected size</span>
+              <strong>{unitTypeSummary(selectedType)}</strong>
+            </div>
+          ) : null}
+          {error ? (
+            <p className="form-error inventory-form-wide">{error}</p>
+          ) : null}
+          <div className="form-actions inventory-form-wide">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={close}
+            >
+              Cancel
+            </button>
+            <button
+              className="button button-primary"
+              disabled={mode === "new" && !facility.unitTypes.length}
+            >
+              Place unit
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }

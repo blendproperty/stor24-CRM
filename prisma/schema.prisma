@@ -21,6 +21,7 @@ enum MapElementType {
   ZONE
   WALL
   DOOR
+  WINDOW
   LABEL
 }
 

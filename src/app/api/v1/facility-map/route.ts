@@ -6,7 +6,7 @@ import { sameOrigin } from "@/lib/request-security";
 import { requireFacility, requireScope } from "@/lib/scope";
 
 const elementSchema = z.object({
-  id: z.string().min(1).max(100), type: z.enum(["UNIT", "ZONE", "WALL", "DOOR", "LABEL"]),
+  id: z.string().min(1).max(100), type: z.enum(["UNIT", "ZONE", "WALL", "DOOR", "WINDOW", "LABEL"]),
   x: z.number().int().min(0).max(5000), y: z.number().int().min(0).max(5000), width: z.number().int().min(10).max(3000), height: z.number().int().min(10).max(3000),
   rotation: z.number().int().min(0).max(359).default(0), label: z.string().trim().max(120).optional(), unitId: z.string().optional(),
   unit: z.object({ unitTypeId: z.string().min(1), number: z.string().trim().min(1).max(40), floor: z.string().trim().max(40).optional(), zone: z.string().trim().max(40).optional(), monthlyRate: z.coerce.number().min(0), taxRate: z.coerce.number().min(0).max(1).default(.15) }).optional(),
