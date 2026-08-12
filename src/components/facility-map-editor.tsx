@@ -77,7 +77,7 @@ type Facility = {
   units: Unit[];
   maps: MapRecord[];
 };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "PARTITION_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
+type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "PARTITION_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "RETURN_STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
 type DraftUnit = {
   unitTypeId: string;
   number: string;
@@ -121,6 +121,7 @@ const elementDefaults: Record<
   SINGLE_DOOR: { width: 70, height: 70, label: "Single door" },
   DOUBLE_DOOR: { width: 110, height: 60, label: "Double door" },
   STAIRS: { width: 140, height: 90, label: "Stairs" },
+  RETURN_STAIRS: { width: 180, height: 140, label: "Return stairs" },
   LIFT: { width: 90, height: 90, label: "Lift" },
   TABLE: { width: 120, height: 70, label: "Table" },
   CHAIR: { width: 50, height: 50, label: "Chair" },
@@ -709,7 +710,8 @@ export function FacilityMapEditor() {
               action={() => addShape("WINDOW")}
               draggable
             />
-            <Tool icon={<Grid3X3 />} label="Stairs" type="STAIRS" action={() => addShape("STAIRS")} draggable />
+            <Tool icon={<Grid3X3 />} label="Straight stairs" type="STAIRS" action={() => addShape("STAIRS")} draggable />
+            <Tool icon={<Grid3X3 />} label="Return stairs" type="RETURN_STAIRS" action={() => addShape("RETURN_STAIRS")} draggable />
             <Tool icon={<Square />} label="Lift" type="LIFT" action={() => addShape("LIFT")} draggable />
             <Tool icon={<Table2 />} label="Table" type="TABLE" action={() => addShape("TABLE")} draggable />
             <Tool icon={<Armchair />} label="Chair" type="CHAIR" action={() => addShape("CHAIR")} draggable />
@@ -943,7 +945,7 @@ export function FacilityMapEditor() {
                     <ArrowRight />
                   </button>
                 </div>
-                {["WALL", "FIRE_WALL", "PARTITION_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
+                {["WALL", "FIRE_WALL", "PARTITION_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "RETURN_STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"
@@ -1058,6 +1060,24 @@ export function FacilityMapEditor() {
                     />
                   </label>
                 ) : null}
+                {["STAIRS", "RETURN_STAIRS"].includes(selected.type) ? (
+                  <>
+                    <button
+                      type="button"
+                      className="map-rotate-button"
+                      onClick={() => patchElement(selected.id, { mirrored: !selected.mirrored })}
+                    >
+                      <ArrowLeft size={15} /> Flip left / right
+                    </button>
+                    <button
+                      type="button"
+                      className="map-rotate-button"
+                      onClick={() => patchElement(selected.id, { flippedVertical: !selected.flippedVertical })}
+                    >
+                      <ArrowUp size={15} /> Flip up / down
+                    </button>
+                  </>
+                ) : null}
                 {selected.type === "UNIT" ? (
                   <p className="map-property-note">
                     <Tag size={14} />
@@ -1171,6 +1191,10 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = {
     transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
   };
+  const mirror = {
+    transform: `scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
+    transformOrigin: "center",
+  };
   if (["WALL", "FIRE_WALL", "PARTITION_WALL"].includes(element.type)) return null;
   if (element.type === "SINGLE_DOOR") {
     return (
@@ -1196,7 +1220,19 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
     return <svg className="map-fixture-symbol" viewBox="0 0 100 40" aria-label={element.label}><rect x="2" y="3" width="96" height="34" rx="2" /><path d="M 5 10 H 95 M 5 17 H 95 M 5 24 H 95 M 5 31 H 95" /></svg>;
   }
   if (element.type === "STAIRS") {
-    return <svg className="map-fixture-symbol" viewBox="0 0 120 80" aria-label={element.label}><rect x="2" y="2" width="116" height="76" /><path d="M 12 68 H 108 M 12 58 H 108 M 12 48 H 108 M 12 38 H 108 M 12 28 H 108 M 12 18 H 108 M 60 67 V 15 M 52 24 L 60 15 L 68 24" /><text x="68" y="65">UP</text></svg>;
+    return <svg className="map-fixture-symbol" viewBox="0 0 120 80" style={mirror} aria-label={element.label}><rect x="2" y="2" width="116" height="76" /><path d="M 12 68 H 108 M 12 58 H 108 M 12 48 H 108 M 12 38 H 108 M 12 28 H 108 M 12 18 H 108 M 60 67 V 15 M 52 24 L 60 15 L 68 24" /><text x="68" y="65">UP</text></svg>;
+  }
+  if (element.type === "RETURN_STAIRS") {
+    return (
+      <svg className="map-fixture-symbol map-return-stairs" viewBox="0 0 180 140" style={mirror} aria-label={element.label}>
+        <rect x="3" y="3" width="174" height="134" />
+        <path d="M 12 14 H 168 M 12 26 H 168 M 12 38 H 168 M 12 50 H 168 M 12 62 H 168 M 12 74 H 168 M 12 86 H 168 M 12 98 H 168 M 12 110 H 168 M 12 122 H 168" />
+        <path className="map-stair-divider" d="M 90 8 V 132" />
+        <path className="map-stair-direction" d="M 45 118 V 24 M 37 34 L 45 24 L 53 34 M 135 22 V 116 M 127 106 L 135 116 L 143 106" />
+        <path className="map-stair-break" d="M 80 50 L 100 64 L 80 78 L 100 92" />
+        <text x="18" y="132">UP</text>
+      </svg>
+    );
   }
   if (element.type === "LIFT") {
     return <svg className="map-fixture-symbol" viewBox="0 0 100 100" aria-label={element.label}><rect x="3" y="3" width="94" height="94" /><path d="M 50 5 V 95 M 18 25 L 28 15 L 38 25 M 62 75 L 72 85 L 82 75" /><text x="50" y="58" textAnchor="middle">LIFT</text></svg>;

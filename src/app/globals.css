@@ -2137,6 +2137,9 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-fixture-symbol rect, .map-fixture-symbol path, .map-fixture-symbol circle { fill: rgba(240, 244, 244, .75); stroke: #203747; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .map-fixture-symbol path { fill: none; }
 .map-fixture-symbol text { fill: #203747; font-size: 12px; font-weight: 800; font-family: inherit; }
+.map-return-stairs .map-stair-divider { stroke-width: 3; }
+.map-return-stairs .map-stair-direction { stroke-width: 2; }
+.map-return-stairs .map-stair-break { stroke-width: 1.5; stroke-dasharray: 5 3; }
 .map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
 .map-editor-roller_shutter, .map-editor-stairs, .map-editor-lift, .map-editor-table, .map-editor-chair, .map-editor-cupboard { overflow: visible; border: 0; background: transparent; }
 .map-editor-wall, .map-editor-fire_wall, .map-editor-partition_wall, .map-editor-door, .map-editor-single_door, .map-editor-double_door, .map-editor-roller_shutter, .map-editor-window { min-width: 2px; min-height: 2px; }

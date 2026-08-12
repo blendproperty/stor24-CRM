@@ -29,6 +29,7 @@ enum MapElementType {
   SINGLE_DOOR
   DOUBLE_DOOR
   STAIRS
+  RETURN_STAIRS
   LIFT
   TABLE
   CHAIR
