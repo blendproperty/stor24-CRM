@@ -60,6 +60,7 @@ type SavedElement = {
   rotation: number;
   label: string | null;
   unit: Unit | null;
+  config?: unknown;
 };
 type MapRecord = {
   id: string;
@@ -98,6 +99,7 @@ type CanvasElement = {
   status?: string;
   unit?: DraftUnit;
   unitDetails?: Unit;
+  mirrored?: boolean;
 };
 
 const snap = (value: number) => Math.max(0, Math.round(value / 10) * 10);
@@ -335,6 +337,12 @@ export function FacilityMapEditor() {
         label: element.label || element.unit?.number || element.type,
         status: element.unit?.status,
         unitDetails: element.unit ?? undefined,
+        mirrored:
+          typeof element.config === "object" &&
+          element.config !== null &&
+          "mirrored" in element.config
+            ? Boolean((element.config as { mirrored?: unknown }).mirrored)
+            : false,
       })) ?? [],
     );
     if (!preserveSelection) setSelectedId("");
@@ -890,13 +898,22 @@ export function FacilityMapEditor() {
                   </button>
                 ) : null}
                 {["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(selected.type) ? (
-                  <button
-                    type="button"
-                    className="map-rotate-button"
-                    onClick={() => rotateSelected(180)}
-                  >
-                    <RotateCw size={15} /> Flip 180°
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="map-rotate-button"
+                      onClick={() => rotateSelected(180)}
+                    >
+                      <RotateCw size={15} /> Rotate 180°
+                    </button>
+                    <button
+                      type="button"
+                      className="map-rotate-button"
+                      onClick={() => patchElement(selected.id, { mirrored: !selected.mirrored })}
+                    >
+                      <ArrowLeft size={15} /> Flip left / right
+                    </button>
+                  </>
                 ) : null}
                 <small className="map-nudge-help">
                   Arrow keys move 10 px · Shift + arrow moves 1 px
@@ -1065,7 +1082,9 @@ export function FacilityMapEditor() {
 }
 
 function MapElementSymbol({ element }: { element: CanvasElement }) {
-  const rotation = { transform: `rotate(${element.rotation}deg)` };
+  const rotation = {
+    transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1})`,
+  };
   if (element.type === "SINGLE_DOOR") {
     return (
       <svg className="map-door-swing" viewBox="0 0 100 100" style={rotation} aria-label={element.label}>
