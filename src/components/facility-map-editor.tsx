@@ -533,7 +533,43 @@ export function FacilityMapEditor() {
       );
       return;
     }
-    const savedMap = payload.data as MapRecord;
+    const savedMapInfo = payload.data.map as Omit<MapRecord, "elements">;
+    const createdUnits = payload.data.createdUnits as Array<{
+      elementId: string;
+      unit: Unit;
+    }>;
+    const updatedElements = elements.map((element) => {
+      const created = createdUnits.find((item) => item.elementId === element.id);
+      return created
+        ? {
+            ...element,
+            unitId: created.unit.id,
+            unit: undefined,
+            unitDetails: created.unit,
+            status: created.unit.status,
+          }
+        : element;
+    });
+    const savedMap: MapRecord = {
+      ...savedMapInfo,
+      elements: updatedElements.map((element) => ({
+        id: element.id,
+        unitId: element.unitId ?? null,
+        type: element.type,
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        rotation: element.rotation,
+        label: element.label,
+        unit: element.unitDetails ?? null,
+        config: {
+          mirrored: element.mirrored,
+          flippedVertical: element.flippedVertical,
+        },
+      })),
+    };
+    setElements(updatedElements);
     setFacilities((current) =>
       current.map((item) => {
         if (item.id !== facilityId) return item;
@@ -556,7 +592,7 @@ export function FacilityMapEditor() {
         };
       }),
     );
-    hydrate(savedMap, true);
+    setDirty(false);
     setLastUpdated(new Date());
     setNotice(`${floorName} saved to ${facility?.name}.`);
   }

@@ -57,19 +57,21 @@ export async function POST(request: Request) {
         if (draftTypeCount !== draftTypeIds.length) throw new Error("CONFLICT");
       }
       const elementRows: Prisma.MapElementCreateManyInput[] = [];
+      const createdUnits: Array<{ elementId: string; unit: Awaited<ReturnType<typeof tx.unit.create>> }> = [];
       for (const [sortOrder, element] of input.elements.entries()) {
         let unitId = element.unitId;
         if (element.type === "UNIT") {
           if (!unitId) {
             if (!element.unit) throw new Error("CONFLICT");
-            const unit = await tx.unit.create({ data: { facilityId: input.facilityId, ...element.unit, status: "AVAILABLE" } }); unitId = unit.id;
+            const unit = await tx.unit.create({ data: { facilityId: input.facilityId, ...element.unit, status: "AVAILABLE" }, include: { unitType: true } }); unitId = unit.id;
+            createdUnits.push({ elementId: element.id, unit });
           }
         }
         elementRows.push({ mapId: map.id, unitId, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label, config: element.unit || element.mirrored || element.flippedVertical ? { ...(element.unit ? { draftUnit: element.unit } : {}), mirrored: element.mirrored, flippedVertical: element.flippedVertical } : undefined, sortOrder });
       }
       if (elementRows.length) await tx.mapElement.createMany({ data: elementRows });
       await tx.auditEvent.create({ data: { organisationId: scope.organisationId, facilityId: input.facilityId, actorId: scope.userId, action: "facility_map.saved", entityType: "FacilityMap", entityId: map.id, after: { name: map.name, elementCount: input.elements.length } } });
-      return tx.facilityMap.findUniqueOrThrow({ where: { id: map.id }, include: { elements: { include: { unit: { include: { unitType: true } } }, orderBy: { sortOrder: "asc" } } } });
+      return { map, createdUnits };
     });
     return Response.json({ data: result });
   } catch (error) { return apiError(error); }
