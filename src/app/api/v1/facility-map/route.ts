@@ -10,6 +10,7 @@ const elementSchema = z.object({
   x: z.number().int().min(0).max(5000), y: z.number().int().min(0).max(5000), width: z.number().int().min(10).max(3000), height: z.number().int().min(10).max(3000),
   rotation: z.number().int().min(0).max(359).default(0), label: z.string().trim().max(120).optional(), unitId: z.string().optional(),
   mirrored: z.boolean().default(false),
+  flippedVertical: z.boolean().default(false),
   unit: z.object({ unitTypeId: z.string().min(1), number: z.string().trim().min(1).max(40), floor: z.string().trim().max(40).optional(), zone: z.string().trim().max(40).optional(), monthlyRate: z.coerce.number().min(0), taxRate: z.coerce.number().min(0).max(1).default(.15) }).optional(),
 });
 const mapSchema = z.object({ facilityId: z.string().min(1), name: z.string().trim().min(1).max(80), width: z.number().int().min(400).max(5000), height: z.number().int().min(300).max(5000), backgroundUrl: z.string().trim().max(500).nullable().optional(), elements: z.array(elementSchema).max(1500) });
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
             const unit = await tx.unit.create({ data: { facilityId: input.facilityId, ...element.unit, status: "AVAILABLE" } }); unitId = unit.id;
           }
         }
-        await tx.mapElement.create({ data: { mapId: map.id, unitId, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label, config: element.unit || element.mirrored ? { ...(element.unit ? { draftUnit: element.unit } : {}), mirrored: element.mirrored } : undefined, sortOrder } });
+        await tx.mapElement.create({ data: { mapId: map.id, unitId, type: element.type, x: element.x, y: element.y, width: element.width, height: element.height, rotation: element.rotation, label: element.label, config: element.unit || element.mirrored || element.flippedVertical ? { ...(element.unit ? { draftUnit: element.unit } : {}), mirrored: element.mirrored, flippedVertical: element.flippedVertical } : undefined, sortOrder } });
       }
       await tx.auditEvent.create({ data: { organisationId: scope.organisationId, facilityId: input.facilityId, actorId: scope.userId, action: "facility_map.saved", entityType: "FacilityMap", entityId: map.id, after: { name: map.name, elementCount: input.elements.length } } });
       return map;

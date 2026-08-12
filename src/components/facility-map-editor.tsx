@@ -100,6 +100,7 @@ type CanvasElement = {
   unit?: DraftUnit;
   unitDetails?: Unit;
   mirrored?: boolean;
+  flippedVertical?: boolean;
 };
 
 const snap = (value: number) => Math.max(0, Math.round(value / 10) * 10);
@@ -344,6 +345,12 @@ export function FacilityMapEditor() {
           element.config !== null &&
           "mirrored" in element.config
             ? Boolean((element.config as { mirrored?: unknown }).mirrored)
+            : false,
+        flippedVertical:
+          typeof element.config === "object" &&
+          element.config !== null &&
+          "flippedVertical" in element.config
+            ? Boolean((element.config as { flippedVertical?: unknown }).flippedVertical)
             : false,
       })) ?? [],
     );
@@ -953,6 +960,13 @@ export function FacilityMapEditor() {
                     >
                       <ArrowLeft size={15} /> Flip left / right
                     </button>
+                    <button
+                      type="button"
+                      className="map-rotate-button"
+                      onClick={() => patchElement(selected.id, { flippedVertical: !selected.flippedVertical })}
+                    >
+                      <ArrowUp size={15} /> Flip up / down
+                    </button>
                   </>
                 ) : null}
                 <small className="map-nudge-help">
@@ -1127,7 +1141,7 @@ export function FacilityMapEditor() {
 
 function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = {
-    transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1})`,
+    transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
   };
   if (element.type === "WALL" || element.type === "FIRE_WALL") return null;
   if (element.type === "SINGLE_DOOR") {
