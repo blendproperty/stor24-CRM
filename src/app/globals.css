@@ -2124,11 +2124,11 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-door, .map-editor-single_door, .map-editor-double_door { overflow: visible; border: 0; background: transparent; }
 .map-door-swing { width: 100%; height: 100%; overflow: visible; transform-origin: center; pointer-events: none; }
 .map-door-swing path { fill: none; vector-effect: non-scaling-stroke; }
-.map-door-arc { stroke: #69747c; stroke-width: 1.5; }
+.map-door-arc { stroke: #7b858d; stroke-width: 1.25; }
 .map-door-opening { stroke: #203747; stroke-width: 3; }
 .map-door-frame { stroke: #69747c; stroke-width: 1.7; stroke-linecap: square; }
 .map-door-wall { stroke: #17324a; stroke-width: 3; stroke-linecap: square; }
-.map-door-leaf { stroke: #69747c; stroke-width: 1.6; stroke-linecap: square; }
+.map-door-leaf { stroke: #17324a; stroke-width: 2.4; stroke-linecap: square; }
 .map-door-swing circle { fill: #203747; }
 .map-fixture-symbol { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .map-fixture-symbol rect, .map-fixture-symbol path, .map-fixture-symbol circle { fill: rgba(240, 244, 244, .75); stroke: #203747; stroke-width: 2; vector-effect: non-scaling-stroke; }

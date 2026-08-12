@@ -1081,7 +1081,7 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
       <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
         <path className="map-door-wall" d="M 0 5 H 20 M 80 5 H 100" />
         <path className="map-door-leaf" d="M 20 5 V 35 M 80 5 V 35" />
-        <path className="map-door-arc" d="M 20 35 A 30 30 0 0 1 50 5 M 80 35 A 30 30 0 0 0 50 5" />
+        <path className="map-door-arc" d="M 20 35 A 30 30 0 0 0 50 5 M 80 35 A 30 30 0 0 1 50 5" />
         <circle cx="20" cy="5" r="2.2" /><circle cx="80" cy="5" r="2.2" />
       </svg>
     );
