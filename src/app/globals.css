@@ -2119,6 +2119,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }
 .map-editor-door { border-color: #b7791f; border-radius: 999px 999px 0 0; background: #f6c768; }
 .map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
+.map-editor-wall, .map-editor-door, .map-editor-window { min-width: 2px; min-height: 2px; }
 .map-editor-label { border: 0; background: transparent; font-size: 18px; cursor: move; }
 .map-status-available { border-color: #159455; background: #e7f8ef; }
 .map-status-reserved, .map-status-held { border-color: #7c3aed; background: #f0eafe; }

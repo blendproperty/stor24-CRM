@@ -748,14 +748,14 @@ export function FacilityMapEditor() {
                         if (resize?.id === element.id && event.buttons)
                           patchElement(element.id, {
                             width: Math.max(
-                              30,
+                              element.type === "UNIT" ? 30 : 10,
                               snap(
                                 resize.width +
                                   (event.clientX - resize.startX) / zoom,
                               ),
                             ),
                             height: Math.max(
-                              20,
+                              element.type === "UNIT" ? 20 : 10,
                               snap(
                                 resize.height +
                                   (event.clientY - resize.startY) / zoom,
