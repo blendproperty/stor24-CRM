@@ -285,6 +285,13 @@ export function FacilityMapEditor() {
   }, [selectedId, mode]);
 
   function hydrate(map?: MapRecord, preserveSelection = false) {
+    const hasLegacyRotation = Boolean(
+      map?.elements.some(
+        (element) =>
+          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
+          element.rotation % 180 !== 0,
+      ),
+    );
     setCanvasSize(
       map
         ? {
@@ -300,16 +307,26 @@ export function FacilityMapEditor() {
         type: element.type,
         x: element.x,
         y: element.y,
-        width: element.width,
-        height: element.height,
-        rotation: element.rotation,
+        width:
+          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
+          element.rotation % 180 !== 0
+            ? element.height
+            : element.width,
+        height:
+          ["WALL", "DOOR", "WINDOW"].includes(element.type) &&
+          element.rotation % 180 !== 0
+            ? element.width
+            : element.height,
+        rotation: ["WALL", "DOOR", "WINDOW"].includes(element.type)
+          ? 0
+          : element.rotation,
         label: element.label || element.unit?.number || element.type,
         status: element.unit?.status,
         unitDetails: element.unit ?? undefined,
       })) ?? [],
     );
     if (!preserveSelection) setSelectedId("");
-    setDirty(false);
+    setDirty(hasLegacyRotation);
   }
   function selectFacility(nextId: string) {
     if (dirty && !confirm("Discard unsaved layout changes?")) return;
@@ -367,7 +384,11 @@ export function FacilityMapEditor() {
   }
   function rotateSelected() {
     if (!selected) return;
-    patchElement(selected.id, { rotation: (selected.rotation + 90) % 360 });
+    patchElement(selected.id, {
+      width: selected.height,
+      height: selected.width,
+      rotation: 0,
+    });
   }
   function removeSelected() {
     if (!selected) return;
