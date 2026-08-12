@@ -432,7 +432,7 @@ export function FacilityMapEditor() {
   }
   function rotateSelected(degrees = 90) {
     if (!selected) return;
-    if (["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(selected.type)) {
+    if (["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "STAIRS", "RETURN_STAIRS"].includes(selected.type)) {
       patchElement(selected.id, {
         rotation: (selected.rotation + degrees) % 360,
       });
@@ -808,7 +808,7 @@ export function FacilityMapEditor() {
                     width: element.width,
                     height: element.height,
                     transform:
-                      ["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(element.type)
+                      ["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "STAIRS", "RETURN_STAIRS"].includes(element.type)
                         ? undefined
                         : `rotate(${element.rotation}deg)`,
                   }}
@@ -1191,10 +1191,6 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
   const rotation = {
     transform: `rotate(${element.rotation}deg) scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
   };
-  const mirror = {
-    transform: `scaleX(${element.mirrored ? -1 : 1}) scaleY(${element.flippedVertical ? -1 : 1})`,
-    transformOrigin: "center",
-  };
   if (["WALL", "FIRE_WALL", "PARTITION_WALL"].includes(element.type)) return null;
   if (element.type === "SINGLE_DOOR") {
     return (
@@ -1220,17 +1216,16 @@ function MapElementSymbol({ element }: { element: CanvasElement }) {
     return <svg className="map-fixture-symbol" viewBox="0 0 100 40" aria-label={element.label}><rect x="2" y="3" width="96" height="34" rx="2" /><path d="M 5 10 H 95 M 5 17 H 95 M 5 24 H 95 M 5 31 H 95" /></svg>;
   }
   if (element.type === "STAIRS") {
-    return <svg className="map-fixture-symbol" viewBox="0 0 120 80" style={mirror} aria-label={element.label}><rect x="2" y="2" width="116" height="76" /><path d="M 12 68 H 108 M 12 58 H 108 M 12 48 H 108 M 12 38 H 108 M 12 28 H 108 M 12 18 H 108 M 60 67 V 15 M 52 24 L 60 15 L 68 24" /><text x="68" y="65">UP</text></svg>;
+    return <svg className="map-fixture-symbol" viewBox="0 0 120 80" style={rotation} aria-label={element.label}><rect x="2" y="2" width="116" height="76" /><path d="M 12 68 H 108 M 12 58 H 108 M 12 48 H 108 M 12 38 H 108 M 12 28 H 108 M 12 18 H 108 M 60 67 V 15 M 52 24 L 60 15 L 68 24" /><text x="68" y="65">UP</text></svg>;
   }
   if (element.type === "RETURN_STAIRS") {
     return (
-      <svg className="map-fixture-symbol map-return-stairs" viewBox="0 0 180 140" style={mirror} aria-label={element.label}>
-        <rect x="3" y="3" width="174" height="134" />
-        <path d="M 12 14 H 168 M 12 26 H 168 M 12 38 H 168 M 12 50 H 168 M 12 62 H 168 M 12 74 H 168 M 12 86 H 168 M 12 98 H 168 M 12 110 H 168 M 12 122 H 168" />
-        <path className="map-stair-divider" d="M 90 8 V 132" />
-        <path className="map-stair-direction" d="M 45 118 V 24 M 37 34 L 45 24 L 53 34 M 135 22 V 116 M 127 106 L 135 116 L 143 106" />
-        <path className="map-stair-break" d="M 80 50 L 100 64 L 80 78 L 100 92" />
-        <text x="18" y="132">UP</text>
+      <svg className="map-fixture-symbol map-return-stairs" viewBox="0 0 180 140" style={rotation} aria-label={element.label}>
+        <path className="map-stair-outline" d="M 4 4 H 176 V 136 H 72 V 118 H 4 V 76 H 148 V 64 H 4 Z" />
+        <path d="M 16 14 V 58 M 32 14 V 58 M 48 14 V 58 M 64 14 V 58 M 80 14 V 58 M 96 14 V 58 M 112 14 V 58 M 128 14 V 58 M 144 14 V 58 M 160 14 V 128 M 144 82 V 128 M 128 82 V 128 M 112 82 V 128 M 96 82 V 128 M 80 82 V 128" />
+        <path className="map-stair-direction" d="M 28 36 H 142 M 132 28 L 142 36 L 132 44 M 142 104 H 86 M 96 96 L 86 104 L 96 112" />
+        <path className="map-stair-break" d="M 82 12 L 92 60 M 88 12 L 98 60 M 118 80 L 108 130 M 124 80 L 114 130" />
+        <text x="8" y="112">UP</text>
       </svg>
     );
   }
