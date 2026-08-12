@@ -7,11 +7,13 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Armchair,
   Box,
   Copy,
   DoorOpen,
   Eye,
   Grid3X3,
+  PanelsTopLeft,
   Maximize2,
   Minimize2,
   MousePointer2,
@@ -21,6 +23,7 @@ import {
   Save,
   Square,
   SquareDashed,
+  Table2,
   Tag,
   Trash2,
   Type,
@@ -73,7 +76,7 @@ type Facility = {
   units: Unit[];
   maps: MapRecord[];
 };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "DOOR" | "WINDOW" | "LABEL";
+type ElementType = "UNIT" | "ZONE" | "WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
 type DraftUnit = {
   unitTypeId: string;
   number: string;
@@ -109,6 +112,14 @@ const elementDefaults: Record<
   DOOR: { width: 100, height: 60, label: "Door" },
   WINDOW: { width: 100, height: 12, label: "Window" },
   LABEL: { width: 180, height: 44, label: "Label" },
+  ROLLER_SHUTTER: { width: 140, height: 36, label: "Roller shutter" },
+  SINGLE_DOOR: { width: 70, height: 60, label: "Single door" },
+  DOUBLE_DOOR: { width: 110, height: 60, label: "Double door" },
+  STAIRS: { width: 140, height: 90, label: "Stairs" },
+  LIFT: { width: 90, height: 90, label: "Lift" },
+  TABLE: { width: 120, height: 70, label: "Table" },
+  CHAIR: { width: 50, height: 50, label: "Chair" },
+  CUPBOARD: { width: 100, height: 45, label: "Cupboard" },
 };
 
 export function FacilityMapEditor() {
@@ -392,7 +403,7 @@ export function FacilityMapEditor() {
   }
   function rotateSelected(degrees = 90) {
     if (!selected) return;
-    if (selected.type === "DOOR") {
+    if (["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(selected.type)) {
       patchElement(selected.id, {
         rotation: (selected.rotation + degrees) % 360,
       });
@@ -621,8 +632,23 @@ export function FacilityMapEditor() {
             />
             <Tool
               icon={<DoorOpen />}
-              label="Door / gate"
-              action={() => addShape("DOOR")}
+              label="Single door"
+              type="SINGLE_DOOR"
+              action={() => addShape("SINGLE_DOOR")}
+              draggable
+            />
+            <Tool
+              icon={<DoorOpen />}
+              label="Double door"
+              type="DOUBLE_DOOR"
+              action={() => addShape("DOUBLE_DOOR")}
+              draggable
+            />
+            <Tool
+              icon={<PanelsTopLeft />}
+              label="Roller shutter"
+              type="ROLLER_SHUTTER"
+              action={() => addShape("ROLLER_SHUTTER")}
               draggable
             />
             <Tool
@@ -631,6 +657,11 @@ export function FacilityMapEditor() {
               action={() => addShape("WINDOW")}
               draggable
             />
+            <Tool icon={<Grid3X3 />} label="Stairs" type="STAIRS" action={() => addShape("STAIRS")} draggable />
+            <Tool icon={<Square />} label="Lift" type="LIFT" action={() => addShape("LIFT")} draggable />
+            <Tool icon={<Table2 />} label="Table" type="TABLE" action={() => addShape("TABLE")} draggable />
+            <Tool icon={<Armchair />} label="Chair" type="CHAIR" action={() => addShape("CHAIR")} draggable />
+            <Tool icon={<Box />} label="Cupboard" type="CUPBOARD" action={() => addShape("CUPBOARD")} draggable />
             <Tool
               icon={<Type />}
               label="Label"
@@ -723,7 +754,7 @@ export function FacilityMapEditor() {
                     width: element.width,
                     height: element.height,
                     transform:
-                      element.type === "DOOR"
+                      ["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(element.type)
                         ? undefined
                         : `rotate(${element.rotation}deg)`,
                   }}
@@ -764,22 +795,7 @@ export function FacilityMapEditor() {
                     dragRef.current = null;
                   }}
                 >
-                  {element.type === "DOOR" ? (
-                    <svg
-                      className="map-door-swing"
-                      viewBox="0 0 100 60"
-                      style={{ transform: `rotate(${element.rotation}deg)` }}
-                      aria-label={element.label}
-                    >
-                      <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 50 5 M 95 55 A 50 50 0 0 0 50 5" />
-                      <path className="map-door-opening" d="M 5 5 L 5 55 M 95 5 L 95 55" />
-                      <path className="map-door-frame" d="M 5 5 L 50 55 L 95 5" />
-                      <circle cx="5" cy="5" r="2.5" />
-                      <circle cx="95" cy="5" r="2.5" />
-                    </svg>
-                  ) : (
-                    <span>{element.label}</span>
-                  )}
+                  <MapElementSymbol element={element} />
                   {element.type === "UNIT" ? (
                     <small>{element.status?.toLowerCase()}</small>
                   ) : null}
@@ -864,7 +880,7 @@ export function FacilityMapEditor() {
                     <ArrowRight />
                   </button>
                 </div>
-                {["WALL", "DOOR", "WINDOW"].includes(selected.type) ? (
+                {["WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"
@@ -873,7 +889,7 @@ export function FacilityMapEditor() {
                     <RotateCw size={15} /> Rotate 90°
                   </button>
                 ) : null}
-                {selected.type === "DOOR" ? (
+                {["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"
@@ -1048,14 +1064,59 @@ export function FacilityMapEditor() {
   );
 }
 
+function MapElementSymbol({ element }: { element: CanvasElement }) {
+  const rotation = { transform: `rotate(${element.rotation}deg)` };
+  if (element.type === "SINGLE_DOOR") {
+    return (
+      <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
+        <path className="map-door-opening" d="M 5 5 L 5 55" />
+        <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 55 5" />
+        <path className="map-door-frame" d="M 5 5 L 55 55" />
+        <circle cx="5" cy="5" r="2.5" />
+      </svg>
+    );
+  }
+  if (element.type === "DOOR" || element.type === "DOUBLE_DOOR") {
+    return (
+      <svg className="map-door-swing" viewBox="0 0 100 60" style={rotation} aria-label={element.label}>
+        <path className="map-door-arc" d="M 5 55 A 50 50 0 0 1 50 5 M 95 55 A 50 50 0 0 0 50 5" />
+        <path className="map-door-opening" d="M 5 5 L 5 55 M 95 5 L 95 55" />
+        <path className="map-door-frame" d="M 5 5 L 50 55 L 95 5" />
+        <circle cx="5" cy="5" r="2.5" /><circle cx="95" cy="5" r="2.5" />
+      </svg>
+    );
+  }
+  if (element.type === "ROLLER_SHUTTER") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 100 40" aria-label={element.label}><rect x="2" y="3" width="96" height="34" rx="2" /><path d="M 5 10 H 95 M 5 17 H 95 M 5 24 H 95 M 5 31 H 95" /></svg>;
+  }
+  if (element.type === "STAIRS") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 120 80" aria-label={element.label}><rect x="2" y="2" width="116" height="76" /><path d="M 12 68 H 108 M 12 58 H 108 M 12 48 H 108 M 12 38 H 108 M 12 28 H 108 M 12 18 H 108 M 60 67 V 15 M 52 24 L 60 15 L 68 24" /><text x="68" y="65">UP</text></svg>;
+  }
+  if (element.type === "LIFT") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 100 100" aria-label={element.label}><rect x="3" y="3" width="94" height="94" /><path d="M 50 5 V 95 M 18 25 L 28 15 L 38 25 M 62 75 L 72 85 L 82 75" /><text x="50" y="58" textAnchor="middle">LIFT</text></svg>;
+  }
+  if (element.type === "TABLE") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 120 70" aria-label={element.label}><rect x="4" y="4" width="112" height="62" rx="9" /><circle cx="16" cy="16" r="3" /><circle cx="104" cy="16" r="3" /><circle cx="16" cy="54" r="3" /><circle cx="104" cy="54" r="3" /></svg>;
+  }
+  if (element.type === "CHAIR") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 60 60" aria-label={element.label}><rect x="12" y="17" width="36" height="34" rx="7" /><path d="M 10 10 H 50 V 21 M 16 50 V 57 M 44 50 V 57" /></svg>;
+  }
+  if (element.type === "CUPBOARD") {
+    return <svg className="map-fixture-symbol" viewBox="0 0 110 50" aria-label={element.label}><rect x="2" y="2" width="106" height="46" /><path d="M 55 3 V 47" /><circle cx="49" cy="25" r="2" /><circle cx="61" cy="25" r="2" /></svg>;
+  }
+  return <span>{element.label}</span>;
+}
+
 function Tool({
   icon,
   label,
+  type,
   action,
   draggable,
 }: {
   icon: React.ReactNode;
   label: string;
+  type?: ElementType;
   action?: () => void;
   draggable?: boolean;
 }) {
@@ -1067,7 +1128,7 @@ function Tool({
       onDragStart={(event) =>
         event.dataTransfer.setData(
           "application/map-tool",
-          label === "Door / gate" ? "DOOR" : label.toUpperCase(),
+          type || label.toUpperCase(),
         )
       }
     >

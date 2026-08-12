@@ -23,6 +23,14 @@ enum MapElementType {
   DOOR
   WINDOW
   LABEL
+  ROLLER_SHUTTER
+  SINGLE_DOOR
+  DOUBLE_DOOR
+  STAIRS
+  LIFT
+  TABLE
+  CHAIR
+  CUPBOARD
 }
 
 enum LeadStage {

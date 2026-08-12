@@ -2121,15 +2121,20 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-element.live { cursor: pointer; }
 .map-editor-zone { place-content: start; padding: 8px; border-style: dashed; background: rgba(25,118,210,.07); color: #31506d; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }
-.map-editor-door { overflow: visible; border: 0; background: transparent; }
+.map-editor-door, .map-editor-single_door, .map-editor-double_door { overflow: visible; border: 0; background: transparent; }
 .map-door-swing { width: 100%; height: 100%; overflow: visible; transform-origin: center; pointer-events: none; }
 .map-door-swing path { fill: none; vector-effect: non-scaling-stroke; }
 .map-door-arc { stroke: #69747c; stroke-width: 1.5; }
 .map-door-opening { stroke: #203747; stroke-width: 3; }
 .map-door-frame { stroke: #69747c; stroke-width: 1.7; stroke-linecap: square; }
 .map-door-swing circle { fill: #203747; }
+.map-fixture-symbol { width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.map-fixture-symbol rect, .map-fixture-symbol path, .map-fixture-symbol circle { fill: rgba(240, 244, 244, .75); stroke: #203747; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-fixture-symbol path { fill: none; }
+.map-fixture-symbol text { fill: #203747; font-size: 12px; font-weight: 800; font-family: inherit; }
 .map-editor-window { border: 2px solid #3182a8; border-radius: 2px; background: #bde8f6; color: #174d66; }
-.map-editor-wall, .map-editor-door, .map-editor-window { min-width: 2px; min-height: 2px; }
+.map-editor-roller_shutter, .map-editor-stairs, .map-editor-lift, .map-editor-table, .map-editor-chair, .map-editor-cupboard { overflow: visible; border: 0; background: transparent; }
+.map-editor-wall, .map-editor-door, .map-editor-single_door, .map-editor-double_door, .map-editor-roller_shutter, .map-editor-window { min-width: 2px; min-height: 2px; }
 .map-editor-label { border: 0; background: transparent; font-size: 18px; cursor: move; }
 .map-status-available { border-color: #159455; background: #e7f8ef; }
 .map-status-reserved, .map-status-held { border-color: #7c3aed; background: #f0eafe; }
