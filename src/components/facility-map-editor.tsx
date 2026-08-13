@@ -33,6 +33,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { moveLayer, type LayerMove } from "@/lib/layer-order";
 
 type UnitType = {
   id: string;
@@ -161,6 +162,9 @@ export function FacilityMapEditor() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const facility = facilities.find((item) => item.id === facilityId);
   const selected = elements.find((item) => item.id === selectedId);
+  const selectedLayerIndex = selected
+    ? elements.findIndex((item) => item.id === selected.id)
+    : -1;
   const maps = facility?.maps ?? [];
   const currentMap = maps.find((map) => map.name === floorName);
   const placedUnitIds = useMemo(
@@ -422,6 +426,11 @@ export function FacilityMapEditor() {
       x: Math.max(0, selected.x + dx),
       y: Math.max(0, selected.y + dy),
     });
+  }
+  function moveSelectedLayer(move: LayerMove) {
+    if (!selected) return;
+    setElements((items) => moveLayer(items, selected.id, move));
+    setDirty(true);
   }
   function expandCanvas(axis: "width" | "height") {
     setCanvasSize((current) => ({
@@ -858,7 +867,7 @@ export function FacilityMapEditor() {
                 else if (type) addShape(type);
               }}
             >
-              {elements.map((element) => (
+              {elements.map((element, layerIndex) => (
                 <div
                   key={element.id}
                   className={`map-editor-element map-editor-${element.type.toLowerCase()} ${selectedId === element.id ? "selected" : ""} ${element.status ? `map-status-${element.status.toLowerCase()}` : ""} ${mode === "live" ? "live" : ""}`}
@@ -867,6 +876,7 @@ export function FacilityMapEditor() {
                     top: element.y,
                     width: element.width,
                     height: element.height,
+                    zIndex: layerIndex + 1,
                     transform:
                       ["DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "STAIRS", "RETURN_STAIRS"].includes(element.type)
                         ? undefined
@@ -1042,6 +1052,39 @@ export function FacilityMapEditor() {
                 <small className="map-nudge-help">
                   Arrow keys move 10 px · Shift + arrow moves 1 px
                 </small>
+                <div className="map-layer-controls">
+                  <strong>Layer order</strong>
+                  <div>
+                    <button
+                      type="button"
+                      disabled={selectedLayerIndex <= 0}
+                      onClick={() => moveSelectedLayer("back")}
+                    >
+                      <ArrowDown size={14} /> Send to back
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedLayerIndex <= 0}
+                      onClick={() => moveSelectedLayer("backward")}
+                    >
+                      <ArrowDown size={14} /> Move backward
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedLayerIndex >= elements.length - 1}
+                      onClick={() => moveSelectedLayer("forward")}
+                    >
+                      <ArrowUp size={14} /> Move forward
+                    </button>
+                    <button
+                      type="button"
+                      disabled={selectedLayerIndex >= elements.length - 1}
+                      onClick={() => moveSelectedLayer("front")}
+                    >
+                      <ArrowUp size={14} /> Bring to front
+                    </button>
+                  </div>
+                </div>
                 <div className="map-property-grid">
                   <label>
                     X
