@@ -627,13 +627,10 @@ function InventoryDialog({
                   Width and length only set the default shape when placing a new unit.
                 </small>
                 {calculatedArea && calculatedArea !== typeArea ? (
-                  <button
-                    type="button"
-                    className="button button-secondary button-small"
-                    onClick={() => setTypeArea(calculatedArea)}
-                  >
-                    Use {calculatedArea} m² from dimensions
-                  </button>
+                  <small>
+                    Nominal dimensions calculate approximately {calculatedArea} m²;
+                    they will not replace the authoritative area.
+                  </small>
                 ) : null}
               </label>
               <Field
