@@ -74,6 +74,9 @@ npm run test
 - `GET /api/v1/reports/export`
 - `GET /api/v1/integrations/health`
 - `POST /api/v1/webhooks/inbound/[provider]`
+- `GET /api/public/v1/facilities`
+- `GET /api/public/v1/facilities/:slug`
+- `POST /api/public/v1/reservations`
 
 Example lead payload:
 
@@ -90,6 +93,7 @@ Example lead payload:
 ```
 
 Operations and configuration handlers enforce session authentication, organisation/facility permission scope, Zod validation and audit logging. Rate limiting and idempotency should be added at the gateway before production use.
+The public booking routes are a separate server-to-server boundary for the Stor24 website. They fail closed unless `PUBLIC_BOOKING_API_KEY` is configured, expose only customer-safe store/map/inventory fields, rate-limit reservation attempts, reserve units transactionally, and write a lead plus audit event. Enable each store explicitly from Company setup before it can appear on the website.
 Route handlers are security boundaries. Protected handlers must call `requirePermission` or `requireSession`; Proxy redirects are an optimistic user-experience check only.
 Operations and configuration handlers additionally enforce organisation/facility scope, Zod validation and audit logging. Rate limiting and idempotency should be added at the gateway before production use.
 

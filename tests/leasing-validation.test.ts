@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountPaymentSchema, customerSchema, moveInSchema, noticeSchema, transferSchema, unitTypeSchema } from "../src/lib/validators";
+import { accountPaymentSchema, customerSchema, facilitySchema, moveInSchema, noticeSchema, transferSchema, unitTypeSchema } from "../src/lib/validators";
 
 test("unit types accept single-character operational names", () => {
   assert.equal(unitTypeSchema.safeParse({ facilityId: "facility-1", name: "A", widthMetres: 4.838, lengthMetres: 7.233, areaSqMetres: 35 }).success, true);
+});
+
+test("facility website addresses are normalized and unsafe slugs are rejected", () => {
+  const valid = facilitySchema.safeParse({ name: "Midpoint", code: "MID", publicSlug: "Midpoint-Storage", publicBookingEnabled: true });
+  assert.equal(valid.success, true);
+  if (valid.success) assert.equal(valid.data.publicSlug, "midpoint-storage");
+  assert.equal(facilitySchema.safeParse({ name: "Midpoint", code: "MID", publicSlug: "midpoint/storage" }).success, false);
 });
 
 test("customer requires a person or company name", () => {

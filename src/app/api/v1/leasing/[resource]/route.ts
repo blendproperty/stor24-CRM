@@ -161,6 +161,30 @@ export async function PATCH(
         where: { id: body.id, ...facilityWhere(scope) },
       });
       if (!current) throw new Error("NOT_FOUND");
+      const facilityData = parsed.data as {
+        publicSlug?: string | null;
+        publicBookingEnabled?: boolean;
+      };
+      if (
+        facilityData.publicBookingEnabled === true &&
+        !(facilityData.publicSlug ?? current.publicSlug)
+      ) {
+        return Response.json(
+          { error: { code: "PUBLIC_SLUG_REQUIRED", message: "Add a public store address before enabling website booking." } },
+          { status: 422 },
+        );
+      }
+      if (
+        facilityData.publicSlug &&
+        await db.facility.findFirst({
+          where: { publicSlug: facilityData.publicSlug, id: { not: current.id } },
+        })
+      ) {
+        return Response.json(
+          { error: { code: "PUBLIC_SLUG_EXISTS", message: "That public store address is already in use." } },
+          { status: 409 },
+        );
+      }
       entity = await db.facility.update({ where: { id: current.id }, data });
     } else if (resource === "customers") {
       const current = await db.customer.findFirst({

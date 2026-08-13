@@ -17,7 +17,7 @@ const id = z.string().trim().min(1).max(64);
 const money = z.coerce.number().nonnegative().max(10_000_000);
 const optionalText = z.string().trim().max(2000).optional();
 
-export const facilitySchema = z.object({ name: z.string().trim().min(2).max(120), code: z.string().trim().min(2).max(40).toUpperCase(), timezone: z.string().trim().min(3).max(80).default("Africa/Johannesburg"), address: z.record(z.string(), z.string()).optional(), active: z.boolean().default(true) });
+export const facilitySchema = z.object({ name: z.string().trim().min(2).max(120), code: z.string().trim().min(2).max(40).toUpperCase(), timezone: z.string().trim().min(3).max(80).default("Africa/Johannesburg"), address: z.record(z.string(), z.string()).optional(), active: z.boolean().default(true), publicSlug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100).nullable().optional(), publicBookingEnabled: z.boolean().default(false) });
 export const unitTypeSchema = z.object({ facilityId: id, name: z.string().trim().min(1).max(100), widthMetres: z.coerce.number().positive().optional(), lengthMetres: z.coerce.number().positive().optional(), areaSqMetres: z.coerce.number().positive().optional(), features: z.array(z.string().trim().min(1).max(80)).max(30).default([]) });
 export const unitSchema = z.object({ facilityId: id, unitTypeId: id, number: z.string().trim().min(1).max(40), floor: z.string().trim().max(40).optional(), zone: z.string().trim().max(40).optional(), monthlyRate: money, taxRate: z.coerce.number().min(0).max(1).default(0.15), status: z.enum(["AVAILABLE", "HELD", "RESERVED", "OCCUPIED", "SERVICE", "UNAVAILABLE"]).default("AVAILABLE") });
 const contactRecord = z.record(z.string(), z.string().max(300)).optional();
