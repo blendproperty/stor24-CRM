@@ -8,7 +8,7 @@ import { TenantDefaults } from "@/components/tenant-defaults";
 import { StatusPill } from "@/components/status-pill";
 
 type Profile = { id: string; facilityId: string | null; domain: string; name: string; status: string; config: Record<string, unknown> };
-type Facility = { id: string; name: string; code: string; timezone: string; active: boolean };
+type Facility = { id: string; name: string; code: string; timezone: string; active: boolean; publicSlug: string | null; publicBookingEnabled: boolean };
 type SetupData = { profiles: Profile[]; integrations: { status: string }[]; facilities: Facility[]; roles: unknown[]; users: unknown[] };
 type AttributeRow = { name: string; description: string; used: boolean };
 type SetupSection = "STORE_INFORMATION" | "TENANT_DEFAULTS" | "WEBSITE_ATTRIBUTES" | "PROGRAM_DEFAULTS";
@@ -79,6 +79,18 @@ export function CompanyWorkspace() {
     setNotice("Setup saved for this facility."); await load();
   }
 
+  async function saveStoreInformation(config: Record<string, unknown>, publicSettings: { publicSlug: string | null; publicBookingEnabled: boolean }) {
+    if (!facilityId) { setError("Select a facility before saving setup details."); return; }
+    setBusy(true); setNotice(""); setError("");
+    const profileResponse = await fetch("/api/v1/configuration", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "profile", payload: { facilityId, domain: "STORE_INFORMATION", name: "Default", status: "READY", config } }) });
+    const profilePayload = await profileResponse.json();
+    if (!profileResponse.ok) { setBusy(false); setError(profilePayload.error?.message ?? "Store information could not be saved."); return; }
+    const facilityResponse = await fetch("/api/v1/leasing/facilities", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: facilityId, data: publicSettings }) });
+    const facilityPayload = await facilityResponse.json(); setBusy(false);
+    if (!facilityResponse.ok) { setError(facilityPayload.error?.message ?? facilityPayload.error?.fields?.publicSlug?.[0] ?? "Website booking settings could not be saved."); return; }
+    setNotice(publicSettings.publicBookingEnabled ? "Store setup saved and website booking enabled." : "Store setup saved."); await load();
+  }
+
   async function addStore(formData: FormData) {
     setStoreBusy(true); setError(""); setNotice("");
     const response = await fetch("/api/v1/leasing/facilities", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: String(formData.get("name") ?? ""), code: String(formData.get("code") ?? ""), timezone: "Africa/Johannesburg", active: true }) });
@@ -101,7 +113,7 @@ export function CompanyWorkspace() {
         <SetupNavButton active={section === "PROGRAM_DEFAULTS"} configured={configured.has("PROGRAM_DEFAULTS")} icon={<SlidersHorizontal size={17}/>} label="Program defaults" onClick={() => setSection("PROGRAM_DEFAULTS")}/>
       </nav>
       <article className="panel panel-spacious company-setup-panel">
-        {section === "STORE_INFORMATION" ? <StoreInformation key={`${facilityId}-${profile("STORE_INFORMATION")?.id ?? "new"}`} initial={profile("STORE_INFORMATION")?.config} busy={busy} onSave={(config) => save("STORE_INFORMATION", config)}/> : null}
+        {section === "STORE_INFORMATION" ? <StoreInformation key={`${facilityId}-${profile("STORE_INFORMATION")?.id ?? "new"}`} initial={profile("STORE_INFORMATION")?.config} facility={selectedFacility} busy={busy} onSave={saveStoreInformation}/> : null}
         {section === "TENANT_DEFAULTS" ? <TenantDefaults key={`${facilityId}-${profile("TENANT_DEFAULTS")?.id ?? "new"}`} initial={profile("TENANT_DEFAULTS")?.config} busy={busy} onSave={(config) => save("TENANT_DEFAULTS", config)}/> : null}
         {section === "WEBSITE_ATTRIBUTES" ? <WebsiteAttributes key={`${facilityId}-${profile("WEBSITE_ATTRIBUTES")?.id ?? "new"}`} initial={profile("WEBSITE_ATTRIBUTES")?.config} busy={busy} onSave={(config) => save("WEBSITE_ATTRIBUTES", config)}/> : null}
         {section === "PROGRAM_DEFAULTS" ? <ProgramDefaults key={`${facilityId}-${profile("PROGRAM_DEFAULTS")?.id ?? "new"}`} initial={profile("PROGRAM_DEFAULTS")?.config} busy={busy} stores={data?.facilities.map(({ id, name }) => ({ id, name })) ?? []} currentStoreId={facilityId} onSave={(config) => save("PROGRAM_DEFAULTS", config)}/> : null}
@@ -114,7 +126,7 @@ function SetupNavButton({ active, configured, icon, label, onClick }: { active: 
   return <button type="button" className={active ? "setup-nav-active" : ""} onClick={onClick}><span>{icon}<strong>{label}</strong></span><StatusPill tone={configured ? "positive" : "warning"}>{configured ? "Saved" : "Configure"}</StatusPill></button>;
 }
 
-function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, unknown>; busy: boolean; onSave: (config: Record<string, unknown>) => void }) {
+function StoreInformation({ initial, facility, busy, onSave }: { initial?: Record<string, unknown>; facility?: Facility; busy: boolean; onSave: (config: Record<string, unknown>, publicSettings: { publicSlug: string | null; publicBookingEnabled: boolean }) => void }) {
   const values = { ...blankStore, ...initial };
   const [province, setProvince] = useState(textValue(values.province));
   const [city, setCity] = useState(textValue(values.city));
@@ -122,7 +134,9 @@ function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, 
   function submit(formData: FormData) {
     const config: Record<string, unknown> = {};
     Object.keys(blankStore).forEach((key) => { config[key] = typeof blankStore[key as keyof typeof blankStore] === "boolean" ? formData.get(key) === "on" : String(formData.get(key) ?? ""); });
-    onSave(config);
+    const publicBookingEnabled = formData.get("publicBookingEnabled") === "on";
+    const publicSlug = String(formData.get("publicSlug") ?? "").trim().toLowerCase() || null;
+    onSave(config, { publicSlug, publicBookingEnabled });
   }
   return <form action={submit} className="company-form">
     <div className="panel-heading"><div><p className="eyebrow">General setup</p><h2>Store information</h2><p className="panel-subtitle">Contact information, business hours, location and website details for the selected facility.</p></div><Building2 className="positive-icon"/></div>
@@ -132,6 +146,7 @@ function StoreInformation({ initial, busy, onSave }: { initial?: Record<string, 
       <fieldset><legend><Clock3 size={16}/>Business hours</legend><div className="hours-grid">{weekDays.map((day) => { const key = day.toLowerCase(); return <div className="hours-row" key={day}><label className="check-label"><input type="checkbox" name={`${key}Closed`} defaultChecked={booleanValue(values[`${key}Closed` as keyof typeof values])}/><span>Closed {day}</span></label><Field name={`${key}Start`} label="Start" value={textValue(values[`${key}Start` as keyof typeof values])} type="time"/><Field name={`${key}End`} label="End" value={textValue(values[`${key}End` as keyof typeof values])} type="time"/></div>; })}</div><p className="field-help">Business day runs from 00:00 to 23:59.</p></fieldset>
       <fieldset><legend><MapPin size={16}/>Store location</legend><div className="field-grid two-column"><Field name="latitude" label="Latitude" value={textValue(values.latitude)} inputMode="decimal"/><Field name="longitude" label="Longitude" value={textValue(values.longitude)} inputMode="decimal"/></div></fieldset>
       <fieldset><legend><Globe2 size={16}/>Website information</legend><div className="field-grid"><Field name="websiteUrl" label="Website URL" value={textValue(values.websiteUrl)} type="url"/><label className="check-label"><input type="checkbox" name="onlinePayments" defaultChecked={booleanValue(values.onlinePayments)}/><span>Online payments supported</span></label><label>Driving directions or location description<textarea name="directions" rows={5} defaultValue={textValue(values.directions)}/></label></div></fieldset>
+      <fieldset><legend><Globe2 size={16}/>Website booking</legend><div className="field-grid"><Field name="publicSlug" label="Public store address" defaultValue={facility?.publicSlug ?? ""} placeholder="midpoint" pattern="[a-z0-9]+(?:-[a-z0-9]+)*"/><p className="field-help">Used in the public booking URL, for example /storage/midpoint.</p><label className="check-label"><input type="checkbox" name="publicBookingEnabled" defaultChecked={facility?.publicBookingEnabled ?? false}/><span>Show this store and its available units on the public website</span></label><p className="safe-config-note"><CheckCircle2 size={16}/>Only customer-safe availability and map details are shared. Staff, tenant and internal configuration data remain private.</p></div></fieldset>
     </div><FormFooter busy={busy}/>
   </form>;
 }
