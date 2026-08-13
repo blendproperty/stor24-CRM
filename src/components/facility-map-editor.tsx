@@ -139,6 +139,8 @@ export function FacilityMapEditor() {
   const [selectedId, setSelectedId] = useState("");
   const [zoom, setZoom] = useState(0.8);
   const [unitDialog, setUnitDialog] = useState(false);
+  const [duplicateDialog, setDuplicateDialog] = useState(false);
+  const [duplicateTarget, setDuplicateTarget] = useState("");
   const [mode, setMode] = useState<"build" | "live">("build");
   const [expanded, setExpanded] = useState(false);
   const mapScrollRef = useRef<HTMLDivElement>(null);
@@ -433,18 +435,13 @@ export function FacilityMapEditor() {
     setElements((items) => moveLayer(items, selected.id, move));
     setDirty(true);
   }
-  async function duplicateFloor() {
+  async function duplicateFloor(targetName: string) {
     if (!facilityId || !currentMap) return;
     if (dirty) {
       setError("Save the current floor before duplicating it.");
       return;
     }
-    const targetName = prompt(
-      "Duplicate this saved layout to which floor?",
-      floorName === "First Floor" ? "Second Floor" : `Copy of ${floorName}`,
-    )?.trim();
     if (!targetName) return;
-    if (!confirm(`Duplicate ${floorName} to ${targetName}? Roof objects will be excluded and new unit numbers will be assigned.`)) return;
 
     setBusy(true);
     setError("");
@@ -465,6 +462,7 @@ export function FacilityMapEditor() {
       setError(payload.error?.message ?? "The floor could not be duplicated.");
       return;
     }
+    setDuplicateDialog(false);
     await load(facilityId, targetName);
     setNotice(
       `${targetName} created with ${payload.data.elementCount} objects and ${payload.data.unitCount} new units (${payload.data.firstUnitNumber}–${payload.data.lastUnitNumber}).`,
@@ -742,7 +740,11 @@ export function FacilityMapEditor() {
             </button>
             <button
               className="button button-secondary"
-              onClick={() => void duplicateFloor()}
+              onClick={() => {
+                const defaultTarget = maps.find((map) => map.name === "Second Floor" && map.name !== floorName)?.name ?? maps.find((map) => map.name !== floorName)?.name ?? "";
+                setDuplicateTarget(defaultTarget);
+                setDuplicateDialog(true);
+              }}
               disabled={!currentMap || busy}
             >
               <Copy size={15} />
@@ -1334,6 +1336,34 @@ export function FacilityMapEditor() {
           close={() => setUnitDialog(false)}
           place={placeUnit}
         />
+      ) : null}
+      {duplicateDialog ? (
+        <div className="modal-backdrop">
+          <div className="modal-card map-duplicate-modal">
+            <button className="modal-close" onClick={() => setDuplicateDialog(false)}>
+              <X size={18} />
+            </button>
+            <p className="eyebrow">Facility map</p>
+            <h2>Duplicate {floorName}</h2>
+            <p className="modal-copy">
+              Copies the latest saved objects and layout. Roof objects are excluded and new sequential unit numbers are assigned. A destination containing objects will not be overwritten.
+            </p>
+            <label>
+              Destination floor
+              <select value={duplicateTarget} onChange={(event) => setDuplicateTarget(event.target.value)}>
+                {maps.filter((map) => map.name !== floorName).map((map) => (
+                  <option value={map.name} key={map.id}>{map.name}</option>
+                ))}
+              </select>
+            </label>
+            <div className="modal-actions">
+              <button className="button button-secondary" onClick={() => setDuplicateDialog(false)} disabled={busy}>Cancel</button>
+              <button className="button button-primary" onClick={() => void duplicateFloor(duplicateTarget)} disabled={!duplicateTarget || busy}>
+                {busy ? "Duplicating…" : "Duplicate floor"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );
