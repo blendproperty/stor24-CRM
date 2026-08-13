@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Search, Trash2, Warehouse, X } from "lucide-react";
+import {
+  ListOrdered,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Warehouse,
+  X,
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
 
@@ -35,6 +45,11 @@ type Facility = {
 };
 type DialogState =
   { kind: "unit"; unit?: Unit } | { kind: "type"; unitType?: UnitType };
+type RenumberChange = {
+  unitId: string;
+  oldNumber: string;
+  newNumber: string;
+};
 
 const editableStatuses = ["AVAILABLE", "SERVICE", "UNAVAILABLE"];
 const statusLabel = (status: string) =>
@@ -61,6 +76,7 @@ export function UnitInventoryWorkspace({
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [forceDeleteCount, setForceDeleteCount] = useState(0);
+  const [renumberDialog, setRenumberDialog] = useState(false);
   const selectedFacility = facilities.find(
     (facility) => facility.id === facilityId,
   );
@@ -244,6 +260,17 @@ export function UnitInventoryWorkspace({
         description="Store-scoped unit register, physical attributes, availability and operational rates."
         action={
           <div className="form-actions">
+            <button
+              className="button button-secondary"
+              onClick={() => {
+                setRenumberDialog(true);
+                setError("");
+              }}
+              disabled={!selectedFacility?.units.length}
+            >
+              <ListOrdered size={15} />
+              Renumber units
+            </button>
             <button
               className="button button-secondary"
               onClick={() => {
@@ -498,6 +525,211 @@ export function UnitInventoryWorkspace({
           forceDeleteCount={forceDeleteCount}
         />
       ) : null}
+      {renumberDialog && selectedFacility ? (
+        <RenumberUnitsDialog
+          facility={selectedFacility}
+          close={() => setRenumberDialog(false)}
+          applied={async (message) => {
+            await refresh();
+            setNotice(message);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function RenumberUnitsDialog({
+  facility,
+  close,
+  applied,
+}: {
+  facility: Facility;
+  close: () => void;
+  applied: (message: string) => Promise<void>;
+}) {
+  const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<{
+    changes: RenumberChange[];
+    mappedCount: number;
+  } | null>(null);
+  const [undoChanges, setUndoChanges] = useState<
+    Array<{ unitId: string; newNumber: string }> | null
+  >(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const sortedUnits = useMemo(
+    () =>
+      [...facility.units].sort((left, right) =>
+        left.number.localeCompare(right.number, "en-ZA", {
+          numeric: true,
+          sensitivity: "base",
+        }),
+      ),
+    [facility.units],
+  );
+  const visibleUnits = sortedUnits.filter((unit) =>
+    `${unit.number} ${unit.floor ?? ""} ${unit.zone ?? ""} ${unit.unitType.name}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
+  const proposedChanges = sortedUnits.flatMap((unit) => {
+    const newNumber = draft[unit.id]?.trim();
+    return newNumber && newNumber !== unit.number
+      ? [{ unitId: unit.id, newNumber }]
+      : [];
+  });
+
+  async function send(
+    action: "preview" | "apply",
+    changes = proposedChanges,
+  ) {
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    const response = await fetch("/api/v1/leasing/units/renumber", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ facilityId: facility.id, action, changes }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(payload.error?.message ?? "The unit numbers could not be checked.");
+      return;
+    }
+    if (action === "preview") {
+      setPreview(payload.data);
+      return;
+    }
+    const count = Number(payload.data.changes.length);
+    const mapCount = Number(payload.data.syncedMapLabels);
+    setUndoChanges(payload.data.undoChanges);
+    setDraft({});
+    setPreview(null);
+    setSuccess(
+      `${count} unit${count === 1 ? "" : "s"} renumbered. ${mapCount} map label${mapCount === 1 ? "" : "s"} synchronised.`,
+    );
+    await applied(
+      `${count} unit${count === 1 ? "" : "s"} renumbered without changing the saved map layout.`,
+    );
+  }
+
+  async function undo() {
+    if (!undoChanges?.length) return;
+    await send("apply", undoChanges);
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal-card renumber-modal" role="dialog" aria-modal="true">
+        <button className="modal-close" onClick={close}>
+          <X size={18} />
+        </button>
+        <p className="eyebrow">Unit inventory</p>
+        <h2>Renumber units</h2>
+        <p className="modal-copy">
+          Change numbers for {facility.name}. Swaps are supported. Unit records,
+          reservations and map positions remain linked by their permanent IDs.
+        </p>
+        <p className="safe-config-note">
+          <ShieldCheck size={17} /> Nothing is saved until the preview passes all
+          duplicate and collision checks.
+        </p>
+        {error ? <p className="form-error">{error}</p> : null}
+        {success ? <p className="form-success">{success}</p> : null}
+        <label className="renumber-search">
+          Find a unit
+          <span className="toolbar-search">
+            <Search size={15} />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Number, floor, zone or type"
+            />
+          </span>
+        </label>
+        <div className="renumber-list" role="table" aria-label="Unit renumbering">
+          <div className="renumber-row renumber-heading" role="row">
+            <strong>Current</strong>
+            <strong>New number</strong>
+            <strong>Floor / type</strong>
+          </div>
+          {visibleUnits.map((unit) => (
+            <div className="renumber-row" role="row" key={unit.id}>
+              <strong>{unit.number}</strong>
+              <input
+                aria-label={`New number for unit ${unit.number}`}
+                value={draft[unit.id] ?? ""}
+                placeholder={unit.number}
+                maxLength={40}
+                onChange={(event) => {
+                  setDraft((current) => ({
+                    ...current,
+                    [unit.id]: event.target.value,
+                  }));
+                  setPreview(null);
+                  setUndoChanges(null);
+                  setSuccess("");
+                }}
+              />
+              <span>
+                {[unit.floor, unit.zone].filter(Boolean).join(" / ") || "—"}
+                <small>{unit.unitType.name}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+        {preview ? (
+          <div className="renumber-preview">
+            <strong>
+              Preview: {preview.changes.length} unit
+              {preview.changes.length === 1 ? "" : "s"}
+            </strong>
+            <span>{preview.mappedCount} visible map labels will update.</span>
+            <div>
+              {preview.changes.map((change) => (
+                <span key={change.unitId}>
+                  {change.oldNumber} → {change.newNumber}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        <div className="form-actions">
+          {undoChanges?.length ? (
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={undo}
+              disabled={busy}
+            >
+              <RotateCcw size={15} /> Undo last renumbering
+            </button>
+          ) : null}
+          <button type="button" className="button button-secondary" onClick={close}>
+            Close
+          </button>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => send("preview")}
+            disabled={busy || !proposedChanges.length}
+          >
+            Preview changes
+          </button>
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => send("apply")}
+            disabled={busy || !preview}
+          >
+            {busy ? "Saving…" : "Apply renumbering"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

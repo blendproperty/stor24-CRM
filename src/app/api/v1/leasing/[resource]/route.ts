@@ -151,6 +151,10 @@ export async function PATCH(
     const scope = await requireScope();
     const data = parsed.data as never;
     let entity: unknown;
+    let auditBefore: { number: string } | undefined;
+    let auditAfter:
+      | { number: string; mapLabelSynchronized: boolean }
+      | undefined;
     if (resource === "facilities") {
       if (!scope.unrestrictedFacilities) throw new Error("FORBIDDEN");
       const current = await db.facility.findFirst({
@@ -176,7 +180,7 @@ export async function PATCH(
       const current = (await (model as typeof db.unit).findFirst({
         where: { id: body.id },
         include: { facility: true },
-      } as never)) as { id: string; facilityId: string } | null;
+      } as never)) as { id: string; facilityId: string; number?: string } | null;
       if (!current) throw new Error("NOT_FOUND");
       await requireFacility(scope, current.facilityId);
       if (resource === "unit-types") {
@@ -206,7 +210,29 @@ export async function PATCH(
         const unitData = parsed.data as {
           unitTypeId?: string;
           status?: string;
+          number?: string;
         };
+        if (
+          unitData.number &&
+          unitData.number !== current.number &&
+          (await db.unit.findFirst({
+            where: {
+              facilityId: current.facilityId,
+              number: { equals: unitData.number, mode: "insensitive" },
+              id: { not: current.id },
+            },
+          }))
+        ) {
+          return Response.json(
+            {
+              error: {
+                code: "UNIT_NUMBER_EXISTS",
+                message: `Unit number ${unitData.number} already exists at this store.`,
+              },
+            },
+            { status: 409 },
+          );
+        }
         if (
           unitData.status &&
           ["HELD", "RESERVED", "OCCUPIED"].includes(unitData.status)
@@ -232,10 +258,31 @@ export async function PATCH(
         )
           throw new Error("CONFLICT");
       }
-      entity = await (model as typeof db.unit).update({
-        where: { id: current.id },
-        data,
-      });
+      if (
+        resource === "units" &&
+        (parsed.data as { number?: string }).number &&
+        (parsed.data as { number?: string }).number !== current.number
+      ) {
+        const nextNumber = (parsed.data as { number: string }).number;
+        auditBefore = { number: current.number ?? "" };
+        auditAfter = { number: nextNumber, mapLabelSynchronized: true };
+        entity = await db.$transaction(async (tx) => {
+          const updated = await tx.unit.update({
+            where: { id: current.id },
+            data,
+          });
+          await tx.mapElement.updateMany({
+            where: { unitId: current.id },
+            data: { label: nextNumber },
+          });
+          return updated;
+        });
+      } else {
+        entity = await (model as typeof db.unit).update({
+          where: { id: current.id },
+          data,
+        });
+      }
     }
     await db.auditEvent.create({
       data: {
@@ -244,6 +291,8 @@ export async function PATCH(
         action: `${resource}.updated`,
         entityType: resource,
         entityId: body.id,
+        before: auditBefore,
+        after: auditAfter,
       },
     });
     return Response.json({ data: entity });
