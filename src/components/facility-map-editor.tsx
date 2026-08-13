@@ -433,6 +433,43 @@ export function FacilityMapEditor() {
     setElements((items) => moveLayer(items, selected.id, move));
     setDirty(true);
   }
+  async function duplicateFloor() {
+    if (!facilityId || !currentMap) return;
+    if (dirty) {
+      setError("Save the current floor before duplicating it.");
+      return;
+    }
+    const targetName = prompt(
+      "Duplicate this saved layout to which floor?",
+      floorName === "First Floor" ? "Second Floor" : `Copy of ${floorName}`,
+    )?.trim();
+    if (!targetName) return;
+    if (!confirm(`Duplicate ${floorName} to ${targetName}? Roof objects will be excluded and new unit numbers will be assigned.`)) return;
+
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const response = await fetch("/api/v1/facility-map/duplicate", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        facilityId,
+        sourceName: floorName,
+        targetName,
+        excludeRoof: true,
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      setError(payload.error?.message ?? "The floor could not be duplicated.");
+      return;
+    }
+    await load(facilityId, targetName);
+    setNotice(
+      `${targetName} created with ${payload.data.elementCount} objects and ${payload.data.unitCount} new units (${payload.data.firstUnitNumber}–${payload.data.lastUnitNumber}).`,
+    );
+  }
   function expandCanvas(axis: "width" | "height") {
     setCanvasSize((current) => ({
       ...current,
@@ -698,10 +735,20 @@ export function FacilityMapEditor() {
           </select>
         </label>
         {mode === "build" ? (
-          <button className="button button-secondary" onClick={addFloor}>
-            <Plus size={15} />
-            Add floor
-          </button>
+          <>
+            <button className="button button-secondary" onClick={addFloor}>
+              <Plus size={15} />
+              Add floor
+            </button>
+            <button
+              className="button button-secondary"
+              onClick={() => void duplicateFloor()}
+              disabled={!currentMap || busy}
+            >
+              <Copy size={15} />
+              Duplicate floor
+            </button>
+          </>
         ) : null}
         <span className="map-save-state">
           {mode === "live"
