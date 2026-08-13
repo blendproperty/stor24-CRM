@@ -78,7 +78,7 @@ type Facility = {
   units: Unit[];
   maps: MapRecord[];
 };
-type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "PARTITION_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "RETURN_STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD";
+type ElementType = "UNIT" | "ZONE" | "WALL" | "FIRE_WALL" | "PARTITION_WALL" | "DOOR" | "WINDOW" | "LABEL" | "ROLLER_SHUTTER" | "SINGLE_DOOR" | "DOUBLE_DOOR" | "STAIRS" | "RETURN_STAIRS" | "LIFT" | "TABLE" | "CHAIR" | "CUPBOARD" | "ROOF";
 type DraftUnit = {
   unitTypeId: string;
   number: string;
@@ -127,6 +127,7 @@ const elementDefaults: Record<
   TABLE: { width: 120, height: 70, label: "Table" },
   CHAIR: { width: 50, height: 50, label: "Chair" },
   CUPBOARD: { width: 100, height: 45, label: "Cupboard" },
+  ROOF: { width: 600, height: 400, label: "ROOF" },
 };
 
 export function FacilityMapEditor() {
@@ -785,6 +786,7 @@ export function FacilityMapEditor() {
             <Tool icon={<Table2 />} label="Table" type="TABLE" action={() => addShape("TABLE")} draggable />
             <Tool icon={<Armchair />} label="Chair" type="CHAIR" action={() => addShape("CHAIR")} draggable />
             <Tool icon={<Box />} label="Cupboard" type="CUPBOARD" action={() => addShape("CUPBOARD")} draggable />
+            <Tool icon={<PanelsTopLeft />} label="Roof" type="ROOF" action={() => addShape("ROOF")} draggable />
             <Tool
               icon={<Type />}
               label="Label"
@@ -1015,7 +1017,7 @@ export function FacilityMapEditor() {
                     <ArrowRight />
                   </button>
                 </div>
-                {["WALL", "FIRE_WALL", "PARTITION_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "RETURN_STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD"].includes(selected.type) ? (
+                {["WALL", "FIRE_WALL", "PARTITION_WALL", "DOOR", "SINGLE_DOOR", "DOUBLE_DOOR", "ROLLER_SHUTTER", "WINDOW", "STAIRS", "RETURN_STAIRS", "LIFT", "TABLE", "CHAIR", "CUPBOARD", "ROOF"].includes(selected.type) ? (
                   <button
                     type="button"
                     className="map-rotate-button"

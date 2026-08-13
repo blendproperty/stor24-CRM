@@ -2124,6 +2124,8 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .map-editor-wall { border: 0; border-radius: 2px; background: #27313a; color: white; }
 .map-editor-fire_wall { border: 0; border-radius: 2px; background: #dc3030; color: white; }
 .map-editor-partition_wall { min-width: 2px; min-height: 2px; border: 0; border-radius: 1px; background: #59636c; color: transparent; }
+.map-editor-roof { overflow: hidden; border: 1px solid #59636c; background: repeating-linear-gradient(90deg, rgba(64,73,80,.42) 0 1px, rgba(255,255,255,.82) 1px 8px); color: #111; }
+.map-editor-roof > span { padding: 5px 9px; border-radius: 4px; background: rgba(255,255,255,.82); font-size: 16px; letter-spacing: .04em; }
 .map-editor-door, .map-editor-single_door, .map-editor-double_door { overflow: visible; border: 0; background: transparent; }
 .map-door-swing { width: 100%; height: 100%; overflow: visible; transform-origin: center; pointer-events: none; }
 .map-door-swing path { fill: none; vector-effect: non-scaling-stroke; }
