@@ -1284,7 +1284,7 @@ export function FacilityMapEditor() {
                   <strong>{selected.unitDetails.unitType.name}</strong>
                 </div>
                 <div>
-                  <span>Size</span>
+                  <span>Nominal dimensions</span>
                   <strong>
                     {[
                       selected.unitDetails.unitType.widthMetres,

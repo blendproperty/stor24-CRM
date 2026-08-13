@@ -55,7 +55,7 @@ export function UnitInventoryWorkspace({
   const [typeId, setTypeId] = useState("");
   const [status, setStatus] = useState("");
   const [query, setQuery] = useState("");
-  const [display, setDisplay] = useState<"size" | "area">("size");
+  const [display, setDisplay] = useState<"size" | "area">("area");
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -133,14 +133,14 @@ export function UnitInventoryWorkspace({
     const targetFacility = String(form.get("facilityId") ?? facilityId);
     const width = Number(form.get("widthMetres") || 0);
     const length = Number(form.get("lengthMetres") || 0);
+    const area = Number(form.get("areaSqMetres") || 0);
     const payload = isType
       ? {
           facilityId: targetFacility,
           name: form.get("name"),
           widthMetres: width || undefined,
           lengthMetres: length || undefined,
-          areaSqMetres:
-            width > 0 && length > 0 ? Math.round(width * length) : undefined,
+          areaSqMetres: area || undefined,
           features: String(form.get("features") ?? "")
             .split(",")
             .map((item) => item.trim())
@@ -355,7 +355,7 @@ export function UnitInventoryWorkspace({
               checked={display === "size"}
               onChange={() => setDisplay("size")}
             />
-            Size
+            Nominal dimensions
           </label>
           <label>
             <input
@@ -376,7 +376,7 @@ export function UnitInventoryWorkspace({
                   <th>Store</th>
                   <th>Unit</th>
                   <th>Type</th>
-                  <th>{display === "size" ? "Size" : "Area"}</th>
+                  <th>{display === "size" ? "Nominal dimensions" : "Area"}</th>
                   <th>Floor / zone</th>
                   <th>Status</th>
                   <th>Monthly rate</th>
@@ -395,9 +395,14 @@ export function UnitInventoryWorkspace({
                           ? [
                               unit.unitType.widthMetres,
                               unit.unitType.lengthMetres,
-                            ]
-                              .filter(Boolean)
-                              .join(" × ") || "—"
+                            ].filter(Boolean).length
+                            ? `${[
+                                unit.unitType.widthMetres,
+                                unit.unitType.lengthMetres,
+                              ]
+                                .filter(Boolean)
+                                .join(" × ")} m`
+                            : "—"
                           : unit.unitType.areaSqMetres
                             ? `${unit.unitType.areaSqMetres} m²`
                             : "—"}
@@ -528,6 +533,7 @@ function InventoryDialog({
   );
   const [typeWidth, setTypeWidth] = useState(editingType?.widthMetres ?? "");
   const [typeLength, setTypeLength] = useState(editingType?.lengthMetres ?? "");
+  const [typeArea, setTypeArea] = useState(editingType?.areaSqMetres ?? "");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const calculatedArea =
     Number(typeWidth) > 0 && Number(typeLength) > 0
@@ -609,11 +615,26 @@ function InventoryDialog({
                 <input
                   name="areaSqMetres"
                   type="number"
-                  value={calculatedArea}
-                  readOnly
-                  tabIndex={-1}
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={typeArea}
+                  onChange={(event) => setTypeArea(event.target.value)}
+                  required
                 />
-                <small>Calculated from width × length and rounded to the nearest whole m².</small>
+                <small>
+                  This is the authoritative rentable area shown on the map and in reservations.
+                  Width and length only set the default shape when placing a new unit.
+                </small>
+                {calculatedArea && calculatedArea !== typeArea ? (
+                  <button
+                    type="button"
+                    className="button button-secondary button-small"
+                    onClick={() => setTypeArea(calculatedArea)}
+                  >
+                    Use {calculatedArea} m² from dimensions
+                  </button>
+                ) : null}
               </label>
               <Field
                 name="features"

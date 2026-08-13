@@ -2078,7 +2078,7 @@ button:disabled { cursor: not-allowed; opacity: .62; }
 .inventory-modal { width: min(720px,calc(100vw - 30px)); }
 .inventory-dialog-error { margin: 12px 0 0; }
 .inventory-form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 13px; margin-top: 18px; }
-.inventory-calculated-field input { background: #f4f6f5; font-weight: 800; }
+.inventory-calculated-field input { background: white; font-weight: 800; }
 .inventory-calculated-field small { color: var(--muted); font-size: 10px; font-weight: 600; line-height: 1.35; }
 .inventory-form-wide { grid-column: 1 / -1; }
 @media (max-width: 980px) { .inventory-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); } .inventory-layout { grid-template-columns: 1fr; } }
