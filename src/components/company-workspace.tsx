@@ -162,6 +162,13 @@ function AttributeEditor({ title, rows, onChange }: { title: string; rows: Attri
   return <section className="attribute-editor"><div className="attribute-heading"><h3>{title}</h3><button type="button" className="button button-secondary button-small" onClick={() => onChange([...rows, { name: "", description: "", used: true }])}><Plus size={14}/>Add attribute</button></div>{rows.length ? <div className="attribute-list">{rows.map((row, index) => <div className="attribute-row" key={index}><input aria-label={`${title} name ${index + 1}`} placeholder="Attribute name" value={row.name} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))}/><input aria-label={`${title} description ${index + 1}`} placeholder="Description" value={row.description} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))}/><label className="check-label compact"><input type="checkbox" checked={row.used} onChange={(event) => onChange(rows.map((item, itemIndex) => itemIndex === index ? { ...item, used: event.target.checked } : item))}/><span>Used</span></label><button type="button" className="icon-button" aria-label={`Remove ${row.name || "attribute"}`} onClick={() => onChange(rows.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={15}/></button></div>)}</div> : <p className="empty-cell">No attributes added yet.</p>}</section>;
 }
 
-function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) { return <label>{label}<input {...props}/></label>; }
+function Field({ label, value, onChange, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  const editableValue = onChange
+    ? { value, onChange }
+    : value !== undefined
+      ? { defaultValue: value }
+      : {};
+  return <label>{label}<input {...props} {...editableValue}/></label>;
+}
 function SelectField({ label, options, placeholder, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { label: string; options: string[]; placeholder: string }) { return <label>{label}<select {...props}><option value="">{placeholder}</option>{props.value && !options.includes(String(props.value)) ? <option value={String(props.value)}>{String(props.value)}</option> : null}{options.map((option) => <option value={option} key={option}>{option}</option>)}</select></label>; }
 function FormFooter({ busy, onClick }: { busy: boolean; onClick?: () => void }) { return <div className="form-footer"><button type={onClick ? "button" : "submit"} className="button button-primary" disabled={busy} onClick={onClick}>{busy ? "Saving…" : "Save setup"}</button></div>; }
