@@ -13,6 +13,15 @@ test("facility website addresses are normalized and unsafe slugs are rejected", 
   assert.equal(facilitySchema.safeParse({ name: "Midpoint", code: "MID", publicSlug: "midpoint/storage" }).success, false);
 });
 
+test("partial facility updates do not persist schema defaults for omitted fields", () => {
+  const raw = { publicSlug: "midpoint" };
+  const parsed = facilitySchema.partial().parse(raw);
+  const patch = Object.fromEntries(
+    Object.keys(raw).map((key) => [key, parsed[key as keyof typeof parsed]]),
+  );
+  assert.deepEqual(patch, { publicSlug: "midpoint" });
+});
+
 test("customer requires a person or company name", () => {
   assert.equal(customerSchema.safeParse({ type: "INDIVIDUAL", email: "test@example.test" }).success, false);
   assert.equal(customerSchema.safeParse({ type: "BUSINESS", companyName: "Synthetic Storage CC" }).success, true);
