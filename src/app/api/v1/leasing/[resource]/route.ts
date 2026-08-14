@@ -137,7 +137,10 @@ export async function PATCH(
       await requirePermission("inventory.manage");
     const body = (await jsonBody(request)) as { id?: string; data?: unknown };
     if (!body.id) throw new Error("NOT_FOUND");
-    const parsed = schemas[resource].partial().safeParse(body.data);
+    const rawData = body.data && typeof body.data === "object" && !Array.isArray(body.data)
+      ? body.data as Record<string, unknown>
+      : {};
+    const parsed = schemas[resource].partial().safeParse(rawData);
     if (!parsed.success)
       return Response.json(
         {
@@ -149,7 +152,11 @@ export async function PATCH(
         { status: 422 },
       );
     const scope = await requireScope();
-    const data = parsed.data as never;
+    const data = Object.fromEntries(
+      Object.keys(rawData)
+        .filter((key) => key in parsed.data)
+        .map((key) => [key, parsed.data[key as keyof typeof parsed.data]]),
+    ) as never;
     let entity: unknown;
     let auditBefore: { number: string } | undefined;
     let auditAfter:
@@ -161,7 +168,7 @@ export async function PATCH(
         where: { id: body.id, ...facilityWhere(scope) },
       });
       if (!current) throw new Error("NOT_FOUND");
-      const facilityData = parsed.data as {
+      const facilityData = data as {
         publicSlug?: string | null;
         publicBookingEnabled?: boolean;
       };
