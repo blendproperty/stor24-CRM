@@ -3,7 +3,7 @@ import { sessionCookieName, verifySessionToken } from "@/lib/session";
 import { db } from "@/lib/db";
 
 const publicPagePrefixes = ["/login", "/forgot-password", "/reset-password/", "/invite/", "/setup/", "/brand/"];
-const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/v1/invitations/accept", "/api/v1/webhooks/inbound/"];
+const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/public/v1/", "/api/v1/invitations/accept", "/api/v1/webhooks/inbound/"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
