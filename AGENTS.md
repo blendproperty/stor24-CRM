@@ -3,3 +3,7 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
+
+## STOR 24 project context
+
+Read `PROJECT_CONTEXT.md` before planning, editing, testing, reporting status, or deploying. Keep it current after material changes.
