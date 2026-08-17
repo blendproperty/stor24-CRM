@@ -46,6 +46,7 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - MRI Property Central is the approved finance system of record (see Ownership decision below); the connector, master-data mapping, transaction ownership, reconciliation, exception handling, sandbox access and acceptance evidence are not complete.
 - South African payment/debit-order provider selection and implementation are outstanding. Do not assume MRI RentPayment is the local solution. This is now a hard blocker for the approved pilot scope — see Pilot facility and first-release scope below.
 - Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof. Hikvision selection is now a hard blocker for the approved pilot scope — see below.
+- **Customer-facing reservation confirmation does not exist.** `createPublicReservation()` never calls a notification step, and the email provider is disabled by default (see Current status and evidence limits). A customer who completes a reservation today receives nothing — no email, SMS or WhatsApp.
 - Migration, production data validation, UAT, training, support ownership, monitoring and go-live readiness remain gated work.
 - Operational policies—including onboarding evidence, arrears, move-in, access, insurance and move-out—must be confirmed by accountable business owners rather than inferred.
 - No finance/MRI implementation work exists on any branch as of 17 August 2026 (the old `codex/finance` branch, now deleted, was stale and non-finance-specific).
@@ -55,6 +56,8 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - `main` (commit `04ef342`) includes the facility-patch-validation fix (PR #8), the public-booking-setup persistence fix (PR #7), the company-setup-inputs fix (PR #6) and the public-booking API feature (PR #5) — all confirmed merged.
 - All other `codex/*` branches were triaged and deleted 17 August 2026 (see Branching policy above). `main` is current.
 - Health and unauthenticated-security checks were previously demonstrated, but current production configuration must be reverified before reporting it as live.
+- **Live-tested 17 August 2026 (Brett Dovey):** the public reservation flow at Midpoint works end to end on the write side — two live reservations were created through the public site (`John Wayne`, unit 103; `Blend Group`, unit 360) and both appear correctly on the CRM's Reservations & holds screen with the right store, unit, quoted rate, hold-expiry and status. This is real evidence the unit-claiming/reservation/hold pipeline works, not just that the API responds.
+- **Gap found in the same test: no customer notification is sent on reservation.** `createPublicReservation()` in `src/lib/public-booking-service.ts` has no notification step at all — it claims the unit, writes the customer/lead/reservation/audit records, and returns. This is not a regression from the recent booking-UI merge in `stor24`; confirmation was never built into this flow. Even if a call were added, `src/lib/email.ts` defaults to a `DisabledEmailProvider` unless `EMAIL_PROVIDER=resend` is configured, and there is no SMS/WhatsApp sender wired in. Do not report the booking lifecycle as "proven" for the pilot until this is closed — a customer who reserves currently gets no confirmation of any kind. Tracked under Priority next work and the "Complete communications provider design" work.
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
 
@@ -93,7 +96,7 @@ Approving this boundary settles which system owns which domain in principle. It 
 - **Pilot facility:** Midpoint. It is also the only facility with a dedicated public-portal build today (`stor24` repository, `app/storage/midpoint`), so existing work there can be reused rather than rebuilt.
 - **First-release scope:** full self-serve — a customer can browse, book, pay and receive working access, end to end, for the Midpoint facility. Concretely this means the release is not "done" until it includes:
   1. Public browsing and quote capture for Midpoint (largely built; see Implemented foundations).
-  2. A live, provable reserve/cancel booking lifecycle for Midpoint (Task 3 — currently unproven, see Current status and evidence limits).
+  2. A live, provable reserve/cancel booking lifecycle for Midpoint (Task 3 — the reserve side is now live-tested, see Current status and evidence limits; cancel is not yet tested, and customer notification is a confirmed gap).
   3. Tokenised payment capture, settlement and reconciliation tied to a Midpoint reservation (Task 5 and Task 6 — requires the South African payment provider decision, which is not yet made).
   4. Live Hikvision access provisioning tied to a paid, confirmed reservation at Midpoint (Task 6 and Task 7 — requires Hikvision provider selection and implementation, not yet started).
 
@@ -137,7 +140,7 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 ## Priority next work
 
 1. Reverify public-booking configuration and the deployed API contract for Midpoint specifically.
-2. With explicit approval, prove the complete public reserve/cancel lifecycle for Midpoint and record evidence.
+2. With explicit approval, prove the reservation cancel path (reserve side is now live-tested — see Current status and evidence limits) and close the customer-notification gap: wire a confirmation step into `createPublicReservation()` and configure a real email provider (`EMAIL_PROVIDER=resend` plus API key) at minimum, ahead of the full communications provider decision if needed for pilot.
 3. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
 4. Select and implement payment and Hikvision access providers — both are now hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus communication, e-signature and insurance providers through the existing provider boundaries.
 5. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
