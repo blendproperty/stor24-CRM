@@ -17,7 +17,7 @@ export interface AccessControlProvider {
 }
 
 export interface MessageProvider {
-  readonly category: "EMAIL" | "SMS";
+  readonly category: "EMAIL" | "SMS" | "WHATSAPP";
   health(): Promise<ProviderResult<{ latencyMs: number }>>;
   send(message: { recipient: string; subject?: string; body: string }, context: ProviderContext): Promise<ProviderResult<{ status: "QUEUED" }>>;
 }
