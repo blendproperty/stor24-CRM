@@ -43,7 +43,7 @@ Use `README.md`, `docs/LEASING_CORE.md`, `docs/OPERATIONS_SETUP.md`, `docs/REPOR
 The presence of screens, schema, interfaces or provider-neutral foundations does not mean an external integration is live.
 
 - Remaining labelled scaffold/demo modules still need database-backed completion.
-- MRI Property Central is the proposed finance system of record, subject to business approval. The connector, master-data mapping, transaction ownership, reconciliation, exception handling, sandbox access and acceptance evidence are not complete.
+- MRI Property Central is the approved finance system of record (see Ownership decision below); the connector, master-data mapping, transaction ownership, reconciliation, exception handling, sandbox access and acceptance evidence are not complete.
 - South African payment/debit-order provider selection and implementation are outstanding. Do not assume MRI RentPayment is the local solution.
 - Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof.
 - Migration, production data validation, UAT, training, support ownership, monitoring and go-live readiness remain gated work.
@@ -58,9 +58,37 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
 
+## Ownership decision — APPROVED 17 August 2026
+
+**Approved by:** Brett Dovey, Blend Property Group.
+
+The boundary below is now the confirmed architecture decision across all three STOR 24 repositories (this repository, `stor24` and `stor24-cms`), not a proposal:
+
+```text
+STOR 24 CRM (this repository) — operational system of record
+  operational customers, facilities, units, reservations, leases,
+  workflows, communications, access intent and operational audit
+
+STOR 24 public portal — customer presentation
+  public marketing, browsing, quote capture and the booking experience
+
+STOR 24 CMS — editorial only
+  editorial pages, storage insights, FAQs, campaign content,
+  SEO fields, approved media and publication state
+
+MRI Property Central — approved finance system of record
+  debtor accounting, general ledger, VAT, financial controls
+  and statutory reporting
+```
+
+Approving this boundary settles which system owns which domain in principle. It does not by itself complete the detailed work still open beneath it:
+
+- The MRI decision pack (system mapping, posting model, reconciliation, exception ownership, sandbox access — see Priority next work item 3) is still to be closed.
+- The CMS currently holds live CRM-shaped collections (`contacts`, `deals`, `activities`, `units`) that fall outside its approved boundary; bringing that repository in line with this decision is tracked in `stor24-cms/PROJECT_CONTEXT.md`.
+
 ## Finance and MRI design boundary
 
-Proposed responsibility split:
+Approved responsibility split (see Ownership decision above for the full three-repository picture):
 
 ```text
 STOR 24 CRM
@@ -78,13 +106,13 @@ Reconciliation
   STOR 24 operational event <-> payment result <-> MRI posting
 ```
 
-This remains a proposed architecture until owners approve system responsibilities, mappings, timing, reconciliation controls and exception ownership.
+The system-ownership boundary itself is approved. Detailed mappings, timing, reconciliation controls and exception ownership are not yet defined and remain the subject of the MRI decision pack in Priority next work.
 
 ## Cross-repository contract
 
 - Public portal: consumes `/api/public/v1/...` through a server-side proxy. Keep the public response allowlisted and backward compatible.
 - CMS: owns approved content/media, not operational records, booking inventory, ledgers or provider credentials.
-- CRM: remains authoritative for operational availability, leads, reservations and staff workflows unless an approved architecture decision changes this.
+- CRM: remains authoritative for operational availability, leads, reservations and staff workflows per the approved ownership decision above.
 
 Coordinate API/schema changes across all three repositories. Never silently duplicate ownership.
 
