@@ -30,10 +30,11 @@ Branches exist only as short-lived rollback/review points before merging into `m
 - Customer, lead, reservation and leasing foundations, including scoped service logic.
 - Operations tasking and company-setup workspaces.
 - Report catalogue, exports and scheduled-report persistence.
-- Provider-neutral integration contracts, health records, webhook inbox and transactional outbox foundations.
-- Versioned communication templates and privacy-aware delivery logs.
+- Provider-neutral integration contracts, health records, webhook inbox and transactional outbox foundations. `MessageProvider` now covers `EMAIL`, `SMS` and `WHATSAPP`.
+- Versioned communication templates (`CommunicationTemplate`) and privacy-aware delivery logs (`CommunicationLog`, recipient stored as a hash) — real Prisma models, though the staff-facing `/communications` screen is still a static mock and does not read from them yet.
+- Reservation-confirmation notification pipeline (`src/lib/notifications.ts`): on a successful public reservation, sends email (via Resend or Twilio SendGrid), SMS and WhatsApp (via Twilio) to whichever channels the customer consented to, using an active `CommunicationTemplate` if one exists or a built-in default otherwise. Every attempt is logged to `CommunicationLog`. Never fails the reservation itself.
 - Public booking API for customer-safe facility, map, unit and availability reads plus secured reservation submission.
-- Transactional unit claiming, idempotency, rate limiting, consent/audit capture, honeypot and reCAPTCHA support in the booking boundary.
+- Transactional unit claiming, idempotency, rate limiting, consent/audit capture, honeypot and reCAPTCHA support in the booking boundary. The public booking form now has real per-channel consent checkboxes again (email/SMS+WhatsApp/phone) instead of hardcoded values.
 - Docker production configuration and documented deployment procedure.
 
 Use `README.md`, `docs/LEASING_CORE.md`, `docs/OPERATIONS_SETUP.md`, `docs/REPORTING_INTEGRATIONS.md` and `docs/EVIDENCE_TO_BUILD_MATRIX.md` for implementation detail.
@@ -45,8 +46,8 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - Remaining labelled scaffold/demo modules still need database-backed completion.
 - MRI Property Central is the approved finance system of record (see Ownership decision below); the connector, master-data mapping, transaction ownership, reconciliation, exception handling, sandbox access and acceptance evidence are not complete.
 - South African payment/debit-order provider selection and implementation are outstanding. Do not assume MRI RentPayment is the local solution. This is now a hard blocker for the approved pilot scope — see Pilot facility and first-release scope below.
-- Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof. Hikvision selection is now a hard blocker for the approved pilot scope — see below.
-- **Customer-facing reservation confirmation does not exist.** `createPublicReservation()` never calls a notification step, and the email provider is disabled by default (see Current status and evidence limits). A customer who completes a reservation today receives nothing — no email, SMS or WhatsApp.
+- Hikvision access control, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof. Hikvision selection is now a hard blocker for the approved pilot scope — see below.
+- **Reservation-confirmation code is written but not yet configured or proven live.** `notifyReservationConfirmed()` exists and is wired into `createPublicReservation()`, but as of 17 August 2026 no provider credentials are set: `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_SMS_FROM`/`TWILIO_WHATSAPP_FROM` and `SENDGRID_API_KEY` (or `RESEND_API_KEY`) are all unset in production. Until they are, every notification attempt fails with `CONFIG_REQUIRED` (message channels) or the disabled-provider error (email) and is logged to `CommunicationLog` as `FAILED` — the reservation itself still succeeds either way. The Twilio account is brand new (signed up 15 August 2026) and on the free trial: SMS can currently only reach numbers verified in the Twilio console, and WhatsApp requires either sandbox opt-in per recipient or full WhatsApp Business approval before it can message arbitrary customers. See Priority next work for the setup steps still required.
 - Migration, production data validation, UAT, training, support ownership, monitoring and go-live readiness remain gated work.
 - Operational policies—including onboarding evidence, arrears, move-in, access, insurance and move-out—must be confirmed by accountable business owners rather than inferred.
 - No finance/MRI implementation work exists on any branch as of 17 August 2026 (the old `codex/finance` branch, now deleted, was stale and non-finance-specific).
@@ -57,7 +58,7 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - All other `codex/*` branches were triaged and deleted 17 August 2026 (see Branching policy above). `main` is current.
 - Health and unauthenticated-security checks were previously demonstrated, but current production configuration must be reverified before reporting it as live.
 - **Live-tested 17 August 2026 (Brett Dovey):** the public reservation flow at Midpoint works end to end on the write side — two live reservations were created through the public site (`John Wayne`, unit 103; `Blend Group`, unit 360) and both appear correctly on the CRM's Reservations & holds screen with the right store, unit, quoted rate, hold-expiry and status. This is real evidence the unit-claiming/reservation/hold pipeline works, not just that the API responds.
-- **Gap found in the same test: no customer notification is sent on reservation.** `createPublicReservation()` in `src/lib/public-booking-service.ts` has no notification step at all — it claims the unit, writes the customer/lead/reservation/audit records, and returns. This is not a regression from the recent booking-UI merge in `stor24`; confirmation was never built into this flow. Even if a call were added, `src/lib/email.ts` defaults to a `DisabledEmailProvider` unless `EMAIL_PROVIDER=resend` is configured, and there is no SMS/WhatsApp sender wired in. Do not report the booking lifecycle as "proven" for the pilot until this is closed — a customer who reserves currently gets no confirmation of any kind. Tracked under Priority next work and the "Complete communications provider design" work.
+- **Gap found in the same test: no customer notification was sent on reservation.** Root cause fixed in code the same day — `createPublicReservation()` now calls `notifyReservationConfirmed()` — but the fix is not yet live-provable because no email/Twilio credentials are configured (see Partially built above). Do not report the booking lifecycle as fully "proven" for the pilot until a real end-to-end notification (at least one channel) has been observed to arrive.
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
 
@@ -96,7 +97,7 @@ Approving this boundary settles which system owns which domain in principle. It 
 - **Pilot facility:** Midpoint. It is also the only facility with a dedicated public-portal build today (`stor24` repository, `app/storage/midpoint`), so existing work there can be reused rather than rebuilt.
 - **First-release scope:** full self-serve — a customer can browse, book, pay and receive working access, end to end, for the Midpoint facility. Concretely this means the release is not "done" until it includes:
   1. Public browsing and quote capture for Midpoint (largely built; see Implemented foundations).
-  2. A live, provable reserve/cancel booking lifecycle for Midpoint (Task 3 — the reserve side is now live-tested, see Current status and evidence limits; cancel is not yet tested, and customer notification is a confirmed gap).
+  2. A live, provable reserve/cancel booking lifecycle for Midpoint (Task 3 — the reserve side is live-tested; cancel is not yet tested; notification code exists but is not yet configured/proven, see Current status and evidence limits).
   3. Tokenised payment capture, settlement and reconciliation tied to a Midpoint reservation (Task 5 and Task 6 — requires the South African payment provider decision, which is not yet made).
   4. Live Hikvision access provisioning tied to a paid, confirmed reservation at Midpoint (Task 6 and Task 7 — requires Hikvision provider selection and implementation, not yet started).
 
@@ -139,10 +140,10 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 
 ## Priority next work
 
-1. Reverify public-booking configuration and the deployed API contract for Midpoint specifically.
-2. With explicit approval, prove the reservation cancel path (reserve side is now live-tested — see Current status and evidence limits) and close the customer-notification gap: wire a confirmation step into `createPublicReservation()` and configure a real email provider (`EMAIL_PROVIDER=resend` plus API key) at minimum, ahead of the full communications provider decision if needed for pilot.
+1. Configure Twilio (Account SID, Auth Token, an SMS-capable number, a WhatsApp sender) and an email provider (`EMAIL_PROVIDER=resend` + `RESEND_API_KEY`, or `EMAIL_PROVIDER=sendgrid` + `SENDGRID_API_KEY`) in this repository's production `.env`, then live-test at least one channel end to end. Trial-account limits apply: SMS only reaches verified numbers until the account is upgraded; WhatsApp needs sandbox opt-in or full Business approval.
+2. With explicit approval, prove the reservation cancel path (reserve side is already live-tested — see Current status and evidence limits).
 3. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
-4. Select and implement payment and Hikvision access providers — both are now hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus communication, e-signature and insurance providers through the existing provider boundaries.
+4. Select and implement payment and Hikvision access providers — both are hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus e-signature and insurance providers through the existing provider boundaries.
 5. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
 6. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
 
