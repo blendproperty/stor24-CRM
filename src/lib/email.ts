@@ -42,10 +42,42 @@ class SendGridEmailProvider implements EmailProvider {
   }
 }
 
+/**
+ * Email via the newer Twilio Email API (comms.twilio.com) — a different
+ * product from Twilio SendGrid above. It authenticates with the same
+ * Account SID / Auth Token already used for SMS and WhatsApp (no separate
+ * signup or API key), and during the trial period sends from an
+ * auto-provisioned "{AccountSID}@twilio.email" sandbox address with no
+ * domain verification required. TWILIO_EMAIL_FROM can override that once a
+ * real sending domain is authenticated in the Twilio console.
+ */
+class TwilioEmailProvider implements EmailProvider {
+  async send(message: EmailMessage) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID ?? "";
+    const authToken = process.env.TWILIO_AUTH_TOKEN ?? "";
+    const fromAddress = process.env.TWILIO_EMAIL_FROM || `${accountSid}@twilio.email`;
+    const fromName = parseFromAddress(process.env.EMAIL_FROM).name ?? "Stor24";
+    const response = await fetch("https://comms.twilio.com/v1/Emails", {
+      method: "POST",
+      headers: {
+        authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from: { address: fromAddress, name: fromName },
+        to: [{ address: message.to }],
+        content: { subject: message.subject, html: message.html, text: message.text },
+      }),
+    });
+    if (!response.ok) throw new Error(`Email provider rejected request (${response.status}).`);
+  }
+}
+
 class DisabledEmailProvider implements EmailProvider { async send() { throw new Error("Email delivery is not configured."); } }
 
 export function emailProvider(): EmailProvider {
   if (process.env.EMAIL_PROVIDER === "resend") return new ResendEmailProvider();
   if (process.env.EMAIL_PROVIDER === "sendgrid") return new SendGridEmailProvider();
+  if (process.env.EMAIL_PROVIDER === "twilio") return new TwilioEmailProvider();
   return new DisabledEmailProvider();
 }
