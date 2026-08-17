@@ -13,7 +13,7 @@ Official CI is documented in `docs/STOR24_BRAND_CI.md`. Use the approved logo fi
 This repository is the internal STOR 24 CRM and operations portal. Despite the GitHub repository name `stor24-portal`, it is not the public marketing website. It owns staff-facing operational truth and exposes a narrowly sanitised public-booking API to the website.
 
 - Repository: `blendproperty/stor24-portal`
-- Primary branch: verify against remote before work; local branch at review was `codex/fix-facility-patch-validation`
+- Primary branch: `main` (verified 17 August 2026 via GitHub). The `codex/fix-facility-patch-validation` branch is merged into `main` through PR #8 (merge commit `c36efb0`) and is stale — safe to delete once no local work depends on it.
 - Stack: Next.js 16, React 19, TypeScript, Prisma 7 and PostgreSQL
 - Canonical transactional schema: `prisma/schema.prisma`
 - Architecture: multi-organisation, multi-facility modular monolith
@@ -47,8 +47,9 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 
 ## Current status and evidence limits
 
-- Local repository was clean on `codex/fix-facility-patch-validation` when this file was created.
-- Recent work fixed public-booking setup persistence, partial facility updates and secured public-booking routing.
+- `main` (commit `c36efb0`) includes the facility-patch-validation fix (PR #8), the public-booking-setup persistence fix (PR #7), the company-setup-inputs fix (PR #6) and the public-booking API feature (PR #5) — all confirmed merged.
+- Several other `codex/*` branches remain open and have not been triaged for unmerged work: `auth-security`, `fix-company-site-setup`, `leasing-core`, `operations-setup`, `reporting-integrations`. Verify each individually before assuming `main` is the complete picture.
+- `codex/finance`, despite its name, has not been updated since 30 July 2026 and its commits (brand system, security hardening) are not finance-specific. It does not represent in-progress finance/MRI work — that workstream has not started on any branch.
 - Health and unauthenticated-security checks were previously demonstrated, but current production configuration must be reverified before reporting it as live.
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
@@ -85,7 +86,7 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 
 ## Priority next work
 
-1. Merge or close the current facility-validation branch after reviewing its exact diff and checks.
+1. Triage the remaining open `codex/*` branches (`auth-security`, `fix-company-site-setup`, `leasing-core`, `operations-setup`, `reporting-integrations`) — merge, rebase or close each with an explicit decision.
 2. Reverify public-booking configuration and the deployed API contract.
 3. With explicit approval, prove the complete public reserve/cancel lifecycle and record evidence.
 4. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
