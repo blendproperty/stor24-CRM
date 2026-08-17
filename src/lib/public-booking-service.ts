@@ -5,6 +5,7 @@ import {
   reservationHoldHours,
   type PublicReservationInput,
 } from "@/lib/public-booking-contract";
+import { notifyReservationConfirmed } from "@/lib/notifications";
 
 export class PublicBookingError extends Error {
   constructor(
@@ -153,9 +154,37 @@ export async function createPublicReservation(input: PublicReservationInput, ipH
           },
         },
       });
-      return created;
+      return { created, customerId: customer.id };
     });
-    return reservationResult(reservation);
+
+    const { created, customerId } = reservation;
+
+    // Notification is best-effort: it must never fail or roll back the
+    // reservation that already succeeded above. notifyReservationConfirmed()
+    // swallows its own errors and logs every attempt to CommunicationLog.
+    try {
+      await notifyReservationConfirmed({
+        organisationId: facility.organisationId,
+        facilityId: facility.id,
+        customerId,
+        idempotencyKey: input.idempotencyKey,
+        consent: input.communicationConsent,
+        to: { email: input.email, phone: input.phone },
+        variables: {
+          firstName: input.firstName,
+          facilityName: created.facility.name,
+          unitNumber: created.unit.number,
+          monthlyRateZar: created.quotedRate.toString(),
+          holdExpiresAt: created.holdExpiresAt?.toISOString() ?? "",
+          reference: created.publicReference ?? "",
+        },
+      });
+    } catch {
+      // Already logged per-channel inside notifyReservationConfirmed; a
+      // notification failure must never surface as a booking failure.
+    }
+
+    return reservationResult(created);
   } catch (error) {
     if (error instanceof PublicBookingError) throw error;
     if ((error as { code?: string }).code === "P2002") {
