@@ -1,1 +1,36 @@
-aW1wb3J0IHsgTmV4dFJlc3BvbnNlLCB0eXBlIE5leHRSZXF1ZXN0IH0gZnJvbSAibmV4dC9zZXJ2ZXIiOwppbXBvcnQgeyBzZXNzaW9uQ29va2llTmFtZSwgdmVyaWZ5U2Vzc2lvblRva2VuIH0gZnJvbSAiQC9saWIvc2Vzc2lvbiI7CmltcG9ydCB7IGRiIH0gZnJvbSAiQC9saWIvZGIiOwoKY29uc3QgcHVibGljUGFnZVByZWZpeGVzID0gWyIvbG9naW4iLCAiL2ZvcmdvdC1wYXNzd29yZCIsICIvcmVzZXQtcGFzc3dvcmQvIiwgIi9pbnZpdGUvIiwgIi9zZXR1cC8iLCAiL2JyYW5kLyJdOwpjb25zdCBwdWJsaWNBcGlQcmVmaXhlcyA9IFsiL2FwaS9oZWFsdGgiLCAiL2FwaS9hdXRoL2xvZ2luIiwgIi9hcGkvYXV0aC9zZXR1cCIsICIvYXBpL2F1dGgvZm9yZ290LXBhc3N3b3JkIiwgIi9hcGkvYXV0aC9yZXNldC1wYXNzd29yZCIsICIvYXBpL3B1YmxpYy92MS8iLCAiL2FwaS92MS9pbnZpdGF0aW9ucy9hY2NlcHQiLCAiL2FwaS92MS93ZWJob29rcy9pbmJvdW5kLyIsICIvYXBpL3YxL2JpbGxpbmcvcnVuLW1vbnRobHkiXTsKCmV4cG9ydCBhc3luYyBmdW5jdGlvbiBwcm94eShyZXF1ZXN0OiBOZXh0UmVxdWVzdCkgewogIGNvbnN0IHsgcGF0aG5hbWUgfSA9IHJlcXVlc3QubmV4dFVybDsKICBjb25zdCBpc1B1YmxpYyA9CiAgICBwdWJsaWNQYWdlUHJlZml4ZXMuc29tZSgocHJlZml4KSA9PiBwYXRobmFtZSA9PT0gcHJlZml4IHx8IHBhdGhuYW1lLnN0YXJ0c1dpdGgocHJlZml4KSkgfHwKICAgIHB1YmxpY0FwaVByZWZpeGVzLnNvbWUoKHByZWZpeCkgPT4gcGF0aG5hbWUgPT09IHByZWZpeCB8fCBwYXRobmFtZS5zdGFydHNXaXRoKHByZWZpeCkpOwogIGNvbnN0IHNlc3Npb24gPSBhd2FpdCB2ZXJpZnlTZXNzaW9uVG9rZW4ocmVxdWVzdC5jb29raWVzLmdldChzZXNzaW9uQ29va2llTmFtZSk/LnZhbHVlKTsKICBjb25zdCB1c2VyID0gc2Vzc2lvbiA/IGF3YWl0IGRiLnVzZXIuZmluZFVuaXF1ZSh7IHdoZXJlOiB7IGlkOiBzZXNzaW9uLnVzZXJJZCB9LCBzZWxlY3Q6IHsgYWN0aXZlOiB0cnVlLCBzZXNzaW9uVmVyc2lvbjogdHJ1ZSB9IH0pIDogbnVsbDsKICBjb25zdCB2YWxpZFNlc3Npb24gPSBCb29sZWFuKHNlc3Npb24gJiYgdXNlcj8uYWN0aXZlICYmIHVzZXIuc2Vzc2lvblZlcnNpb24gPT09IHNlc3Npb24uc2Vzc2lvblZlcnNpb24pOwoKICBpZiAocGF0aG5hbWUgPT09ICIvbG9naW4iICYmIHZhbGlkU2Vzc2lvbikgewogICAgcmV0dXJuIE5leHRSZXNwb25zZS5yZWRpcmVjdChuZXcgVVJMKCIvIiwgcmVxdWVzdC51cmwpKTsKICB9CiAgaWYgKGlzUHVibGljKSByZXR1cm4gTmV4dFJlc3BvbnNlLm5leHQoKTsKICBpZiAoIXZhbGlkU2Vzc2lvbiAmJiBwYXRobmFtZS5zdGFydHNXaXRoKCIvYXBpLyIpKSB7CiAgICByZXR1cm4gUmVzcG9uc2UuanNvbih7IGVycm9yOiB7IGNvZGU6ICJVTkFVVEhFTlRJQ0FURUQiLCBtZXNzYWdlOiAiUGxlYXNlIHNpZ24gaW4uIiB9IH0sIHsgc3RhdHVzOiA0MDEgfSk7CiAgfQogIGlmICghdmFsaWRTZXNzaW9uKSB7CiAgICBjb25zdCBsb2dpblVybCA9IG5ldyBVUkwoIi9sb2dpbiIsIHJlcXVlc3QudXJsKTsKICAgIGxvZ2luVXJsLnNlYXJjaFBhcmFtcy5zZXQoIm5leHQiLCBwYXRobmFtZSk7CiAgICBjb25zdCByZXNwb25zZSA9IE5leHRSZXNwb25zZS5yZWRpcmVjdChsb2dpblVybCk7CiAgICByZXNwb25zZS5jb29raWVzLmRlbGV0ZShzZXNzaW9uQ29va2llTmFtZSk7CiAgICByZXR1cm4gcmVzcG9uc2U7CiAgfQogIHJldHVybiBOZXh0UmVzcG9uc2UubmV4dCgpOwp9CgpleHBvcnQgY29uc3QgY29uZmlnID0gewogIG1hdGNoZXI6IFsiLygoPyFfbmV4dC9zdGF0aWN8X25leHQvaW1hZ2V8ZmF2aWNvbi5pY28pLiopIl0sCn07Cg==
+import { NextResponse, type NextRequest } from "next/server";
+import { sessionCookieName, verifySessionToken } from "@/lib/session";
+import { db } from "@/lib/db";
+
+const publicPagePrefixes = ["/login", "/forgot-password", "/reset-password/", "/invite/", "/setup/", "/brand/"];
+const publicApiPrefixes = ["/api/health", "/api/auth/login", "/api/auth/setup", "/api/auth/forgot-password", "/api/auth/reset-password", "/api/public/v1/", "/api/v1/invitations/accept", "/api/v1/webhooks/inbound/", "/api/v1/billing/run-monthly"];
+
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isPublic =
+    publicPagePrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix)) ||
+    publicApiPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  const session = await verifySessionToken(request.cookies.get(sessionCookieName)?.value);
+  const user = session ? await db.user.findUnique({ where: { id: session.userId }, select: { active: true, sessionVersion: true } }) : null;
+  const validSession = Boolean(session && user?.active && user.sessionVersion === session.sessionVersion);
+
+  if (pathname === "/login" && validSession) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+  if (isPublic) return NextResponse.next();
+  if (!validSession && pathname.startsWith("/api/")) {
+    return Response.json({ error: { code: "UNAUTHENTICATED", message: "Please sign in." } }, { status: 401 });
+  }
+  if (!validSession) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("next", pathname);
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete(sessionCookieName);
+    return response;
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
