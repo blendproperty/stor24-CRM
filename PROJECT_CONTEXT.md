@@ -13,10 +13,14 @@ Official CI is documented in `docs/STOR24_BRAND_CI.md`. Use the approved logo fi
 This repository is the internal STOR 24 CRM and operations portal. Despite the GitHub repository name `stor24-portal`, it is not the public marketing website. It owns staff-facing operational truth and exposes a narrowly sanitised public-booking API to the website.
 
 - Repository: `blendproperty/stor24-portal`
-- Primary branch: `main` (verified 17 August 2026 via GitHub). The `codex/fix-facility-patch-validation` branch is merged into `main` through PR #8 (merge commit `c36efb0`) and is stale — safe to delete once no local work depends on it.
+- Primary branch: `main` (verified 17 August 2026 via GitHub)
 - Stack: Next.js 16, React 19, TypeScript, Prisma 7 and PostgreSQL
 - Canonical transactional schema: `prisma/schema.prisma`
 - Architecture: multi-organisation, multi-facility modular monolith
+
+## Branching policy
+
+Branches exist only as short-lived rollback/review points before merging into `main`. Open a branch, get it reviewed and merged, then delete it immediately — do not let feature branches accumulate. On 17 August 2026, all 10 `codex/*` branches (`fix-facility-patch-validation`, `fix-public-booking-setup`, `fix-company-inputs`, `public-booking-api`, `fix-company-site-setup`, `reporting-integrations`, `operations-setup`, `finance`, `leasing-core`, `auth-security`) were confirmed at zero commits ahead of `main` and deleted. `main` is now the complete picture of this repository; keep it that way going forward.
 
 ## Implemented foundations
 
@@ -44,12 +48,12 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof.
 - Migration, production data validation, UAT, training, support ownership, monitoring and go-live readiness remain gated work.
 - Operational policies—including onboarding evidence, arrears, move-in, access, insurance and move-out—must be confirmed by accountable business owners rather than inferred.
+- No finance/MRI implementation work exists on any branch as of 17 August 2026 (the old `codex/finance` branch, now deleted, was stale and non-finance-specific).
 
 ## Current status and evidence limits
 
-- `main` (commit `c36efb0`) includes the facility-patch-validation fix (PR #8), the public-booking-setup persistence fix (PR #7), the company-setup-inputs fix (PR #6) and the public-booking API feature (PR #5) — all confirmed merged.
-- Several other `codex/*` branches remain open and have not been triaged for unmerged work: `auth-security`, `fix-company-site-setup`, `leasing-core`, `operations-setup`, `reporting-integrations`. Verify each individually before assuming `main` is the complete picture.
-- `codex/finance`, despite its name, has not been updated since 30 July 2026 and its commits (brand system, security hardening) are not finance-specific. It does not represent in-progress finance/MRI work — that workstream has not started on any branch.
+- `main` (commit `04ef342`) includes the facility-patch-validation fix (PR #8), the public-booking-setup persistence fix (PR #7), the company-setup-inputs fix (PR #6) and the public-booking API feature (PR #5) — all confirmed merged.
+- All other `codex/*` branches were triaged and deleted 17 August 2026 (see Branching policy above). `main` is current.
 - Health and unauthenticated-security checks were previously demonstrated, but current production configuration must be reverified before reporting it as live.
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
@@ -86,13 +90,12 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 
 ## Priority next work
 
-1. Triage the remaining open `codex/*` branches (`auth-security`, `fix-company-site-setup`, `leasing-core`, `operations-setup`, `reporting-integrations`) — merge, rebase or close each with an explicit decision.
-2. Reverify public-booking configuration and the deployed API contract.
-3. With explicit approval, prove the complete public reserve/cancel lifecycle and record evidence.
-4. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
-5. Select and implement payment, access, communication, e-signature and insurance providers through the existing provider boundaries.
-6. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
-7. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
+1. Reverify public-booking configuration and the deployed API contract.
+2. With explicit approval, prove the complete public reserve/cancel lifecycle and record evidence.
+3. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
+4. Select and implement payment, access, communication, e-signature and insurance providers through the existing provider boundaries.
+5. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
+6. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
 
 ## Working rules for any AI assistant
 
@@ -105,6 +108,7 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 7. Before validation run Prisma generation and Next type generation where required, then targeted tests and the relevant `npm run check` components.
 8. Separate pre-existing repository-wide failures from failures caused by the change, but never hide either.
 9. Update this file after material changes and include evidence, not optimistic status language.
+10. Follow the branching policy above: short-lived branches only, deleted promptly after merge.
 
 ## Definition of done
 
