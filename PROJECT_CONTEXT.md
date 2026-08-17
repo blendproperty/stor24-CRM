@@ -44,8 +44,8 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 
 - Remaining labelled scaffold/demo modules still need database-backed completion.
 - MRI Property Central is the approved finance system of record (see Ownership decision below); the connector, master-data mapping, transaction ownership, reconciliation, exception handling, sandbox access and acceptance evidence are not complete.
-- South African payment/debit-order provider selection and implementation are outstanding. Do not assume MRI RentPayment is the local solution.
-- Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof.
+- South African payment/debit-order provider selection and implementation are outstanding. Do not assume MRI RentPayment is the local solution. This is now a hard blocker for the approved pilot scope — see Pilot facility and first-release scope below.
+- Hikvision access control, communications providers, e-signature, insurance and other external providers require selection, credentials, implementation and end-to-end proof. Hikvision selection is now a hard blocker for the approved pilot scope — see below.
 - Migration, production data validation, UAT, training, support ownership, monitoring and go-live readiness remain gated work.
 - Operational policies—including onboarding evidence, arrears, move-in, access, insurance and move-out—must be confirmed by accountable business owners rather than inferred.
 - No finance/MRI implementation work exists on any branch as of 17 August 2026 (the old `codex/finance` branch, now deleted, was stale and non-finance-specific).
@@ -86,6 +86,24 @@ Approving this boundary settles which system owns which domain in principle. It 
 - The MRI decision pack (system mapping, posting model, reconciliation, exception ownership, sandbox access — see Priority next work item 3) is still to be closed.
 - The CMS currently holds live CRM-shaped collections (`contacts`, `deals`, `activities`, `units`) that fall outside its approved boundary; bringing that repository in line with this decision is tracked in `stor24-cms/PROJECT_CONTEXT.md`.
 
+## Pilot facility and first-release scope — APPROVED 17 August 2026
+
+**Approved by:** Brett Dovey, Blend Property Group.
+
+- **Pilot facility:** Midpoint. It is also the only facility with a dedicated public-portal build today (`stor24` repository, `app/storage/midpoint`), so existing work there can be reused rather than rebuilt.
+- **First-release scope:** full self-serve — a customer can browse, book, pay and receive working access, end to end, for the Midpoint facility. Concretely this means the release is not "done" until it includes:
+  1. Public browsing and quote capture for Midpoint (largely built; see Implemented foundations).
+  2. A live, provable reserve/cancel booking lifecycle for Midpoint (Task 3 — currently unproven, see Current status and evidence limits).
+  3. Tokenised payment capture, settlement and reconciliation tied to a Midpoint reservation (Task 5 and Task 6 — requires the South African payment provider decision, which is not yet made).
+  4. Live Hikvision access provisioning tied to a paid, confirmed reservation at Midpoint (Task 6 and Task 7 — requires Hikvision provider selection and implementation, not yet started).
+
+**This scope choice creates two hard, unresolved prerequisites** that block first release regardless of other progress:
+
+- South African payment/debit-order provider selection (no provider is selected as of 17 August 2026).
+- Hikvision access-control provider selection, credentials and end-to-end access-provisioning proof (not started as of 17 August 2026).
+
+Both must be closed under Task 6 ("Select external providers") before the payments and access portions of this scope can be built, let alone proven. Until then, treat "booking works" and "payment/access works" as two separate, independently gated claims — do not infer the latter from the former.
+
 ## Finance and MRI design boundary
 
 Approved responsibility split (see Ownership decision above for the full three-repository picture):
@@ -118,10 +136,10 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 
 ## Priority next work
 
-1. Reverify public-booking configuration and the deployed API contract.
-2. With explicit approval, prove the complete public reserve/cancel lifecycle and record evidence.
+1. Reverify public-booking configuration and the deployed API contract for Midpoint specifically.
+2. With explicit approval, prove the complete public reserve/cancel lifecycle for Midpoint and record evidence.
 3. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
-4. Select and implement payment, access, communication, e-signature and insurance providers through the existing provider boundaries.
+4. Select and implement payment and Hikvision access providers — both are now hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus communication, e-signature and insurance providers through the existing provider boundaries.
 5. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
 6. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
 
