@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { facilityWhere, requireFacility, type RequestScope } from "@/lib/scope";
@@ -6,6 +6,8 @@ import { revokeBiometricAccess } from "@/lib/biometric-access-service";
 import { LEASE_CLAUSE_KEYS, LEASE_VERSION, renderLeaseDocument, type LeaseClauseContext, type LeaseClauseKey } from "@/lib/lease-agreement-content";
 
 type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
+
+const SIGNING_LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 function audit(tx: Tx, scope: RequestScope, action: string, entityType: string, entityId: string, facilityId?: string, before?: Prisma.InputJsonValue, after?: Prisma.InputJsonValue) {
   return tx.auditEvent.create({ data: { organisationId: scope.organisationId, facilityId, actorId: scope.userId, action, entityType, entityId, before, after } });
@@ -22,10 +24,10 @@ export async function listLeasing(scope: RequestScope) {
   });
   const facilityIds = facilities.map((facility) => facility.id);
   const [customers, leads, reservations, tenancies] = await Promise.all([
-    db.customer.findMany({ where: { organisationId: scope.organisationId }, include: { leads: { orderBy: { updatedAt: "desc" }, take: 10 }, reservations: { include: { facility: true, unit: true }, orderBy: { updatedAt: "desc" }, take: 10 }, tenancies: { include: { facility: true, account: true, occupancies: { include: { unit: { include: { unitType: true } } }, orderBy: { startDate: "desc" } } }, orderBy: { updatedAt: "desc" } } }, orderBy: { updatedAt: "desc" } }),
+    db.customer.findMany({ where: { organisationId: scope.organisationId }, include: { leads: { orderBy: { updatedAt: "desc" }, take: 10 }, reservations: { include: { facility: true, unit: true }, orderBy: { updatedAt: "desc" }, take: 10 }, tenancies: { include: { facility: true, account: true, occupancies: { include: { unit: { include: { unitType: true } } }, orderBy: { startDate: "desc" } }, documents: { where: { type: "LEASE_AGREEMENT" }, orderBy: { createdAt: "desc" }, take: 1 } }, orderBy: { updatedAt: "desc" } } }, orderBy: { updatedAt: "desc" } }),
     db.lead.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, desiredUnitType: true, facility: true }, orderBy: { updatedAt: "desc" } }),
     db.reservation.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, unit: true, facility: true }, orderBy: { updatedAt: "desc" } }),
-    db.tenancy.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, account: true, facility: true, occupancies: { include: { unit: true }, orderBy: { startDate: "desc" } } }, orderBy: { updatedAt: "desc" } }),
+    db.tenancy.findMany({ where: { facilityId: { in: facilityIds } }, include: { customer: true, account: true, facility: true, occupancies: { include: { unit: true }, orderBy: { startDate: "desc" } }, documents: { where: { type: "LEASE_AGREEMENT" }, orderBy: { createdAt: "desc" }, take: 1 } }, orderBy: { updatedAt: "desc" } }),
   ]);
   return { facilities, customers, leads, reservations, tenancies };
 }
@@ -77,10 +79,21 @@ export async function cancelReservation(scope: RequestScope, reservationId: stri
   });
 }
 
-export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string; signerName: string; initials: LeaseClauseKey[]; signerIp?: string | null; signerUserAgent?: string | null }) {
+/**
+ * Starts a move-in and sends the lease agreement out for e-signature —
+ * DocuSign-style, not signed inline by a staff member on the customer's
+ * behalf. Creates the Account, a DRAFT Tenancy and a PENDING Occupancy
+ * (the unit stays RESERVED, not OCCUPIED), and a Document row holding the
+ * rendered lease content plus a single-use signingToken and a 7-day
+ * expiry. The caller is responsible for emailing/texting the signing link
+ * (see sendLeaseSigningLink in notifications.ts) — nothing here sends
+ * anything itself, so the transaction stays free of network calls.
+ *
+ * The Tenancy/Occupancy only become ACTIVE/OCCUPIED once the customer
+ * actually signs, via completeLeaseSigning() below.
+ */
+export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string }) {
   await requireFacility(scope, input.facilityId);
-  const missingClauses = LEASE_CLAUSE_KEYS.filter((key) => !input.initials.includes(key));
-  if (missingClauses.length > 0) throw new Error("CONFLICT");
   return db.$transaction(async (tx) => {
     const unit = await tx.unit.findFirst({ where: { id: input.unitId, facilityId: input.facilityId, status: { in: ["AVAILABLE", "RESERVED"] } }, include: { unitType: true } });
     const customer = await tx.customer.findFirst({ where: { id: input.customerId, organisationId: scope.organisationId } });
@@ -88,17 +101,82 @@ export async function moveIn(scope: RequestScope, input: { reservationId?: strin
     if (!unit || !customer || !facility) throw new Error("CONFLICT");
     const account = await tx.account.create({ data: { customerId: customer.id, accountNumber: `ST24-${Date.now().toString(36).toUpperCase()}` } });
     const monthlyRate = input.monthlyRate ?? unit.monthlyRate;
-    const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "ACTIVE", startDate: input.startDate, occupancies: { create: { unitId: unit.id, status: "ACTIVE", startDate: input.startDate, monthlyRate, accessState: input.accessState } } } });
-    await tx.unit.update({ where: { id: unit.id }, data: { status: "OCCUPIED" } });
+    const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "DRAFT", startDate: input.startDate, occupancies: { create: { unitId: unit.id, status: "PENDING", startDate: input.startDate, monthlyRate, accessState: input.accessState } } } });
+    // Hold the unit while the lease is out for signature, but do not occupy it yet.
+    await tx.unit.update({ where: { id: unit.id }, data: { status: "RESERVED" } });
     const customerName = customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Customer";
     const clauseContext: LeaseClauseContext = { facilityName: facility.name, unitNumber: unit.number, unitTypeName: unit.unitType.name, customerName, monthlyRate: Number(monthlyRate), startDate: input.startDate };
     const leaseContent = renderLeaseDocument(clauseContext);
-    const initialsRecord = LEASE_CLAUSE_KEYS.map((key) => ({ clauseKey: key, initialedAt: new Date().toISOString() }));
-    await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "inline", content: leaseContent, sha256: hashDocument(leaseContent), signerName: input.signerName, signerIp: input.signerIp ?? null, signerUserAgent: input.signerUserAgent ?? null, initials: initialsRecord, clauseVersion: LEASE_VERSION, signedAt: new Date() } });
-    if (input.initialCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge", effectiveAt: input.startDate, createdById: scope.userId } }); await tx.account.update({ where: { id: account.id }, data: { balance: { increment: input.initialCharge } } }); }
+    const signingToken = randomBytes(32).toString("base64url");
+    const sentAt = new Date();
+    const expiresAt = new Date(sentAt.getTime() + SIGNING_LINK_TTL_MS);
+    const document = await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "inline", content: leaseContent, sha256: hashDocument(leaseContent), clauseVersion: LEASE_VERSION, status: "SENT", signingToken, sentAt, expiresAt } });
+    if (input.initialCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge (pending lease signature)", effectiveAt: input.startDate, createdById: scope.userId } }); await tx.account.update({ where: { id: account.id }, data: { balance: { increment: input.initialCharge } } }); }
     if (input.reservationId) await tx.reservation.update({ where: { id: input.reservationId }, data: { status: "CONVERTED", convertedTenancyId: tenancy.id } });
-    await audit(tx, scope, "tenancy.moved_in", "Tenancy", tenancy.id, input.facilityId); return tenancy;
+    await audit(tx, scope, "tenancy.lease_sent_for_signature", "Tenancy", tenancy.id, input.facilityId);
+    return { tenancy, document, customer, facility, unit };
   });
+}
+
+/**
+ * Completes a lease e-signature submitted from the public /sign/[token]
+ * page. Unauthenticated by design — the signingToken is the credential,
+ * generated with 32 random bytes and single-use per Document. On success,
+ * flips the Occupancy to ACTIVE, the Unit to OCCUPIED and the Tenancy to
+ * ACTIVE — this is the point at which the deal actually becomes a live
+ * tenancy, not the earlier moveIn() call.
+ *
+ * Throws Error with message NOT_FOUND / ALREADY_SIGNED / EXPIRED /
+ * VALIDATION_ERROR so the calling API route can map each to the right
+ * HTTP status and customer-facing copy.
+ */
+export async function completeLeaseSigning(token: string, input: { signerName: string; initials: LeaseClauseKey[]; signerIp: string | null; signerUserAgent: string | null }) {
+  const missingClauses = LEASE_CLAUSE_KEYS.filter((key) => !input.initials.includes(key));
+  if (missingClauses.length > 0) throw new Error("VALIDATION_ERROR");
+  return db.$transaction(async (tx) => {
+    const document = await tx.document.findFirst({ where: { signingToken: token }, include: { tenancy: { include: { occupancies: true, facility: true } } } });
+    if (!document) throw new Error("NOT_FOUND");
+    if (document.status === "SIGNED") throw new Error("ALREADY_SIGNED");
+    if (document.status !== "SENT") throw new Error("NOT_FOUND");
+    if (document.expiresAt && document.expiresAt < new Date()) throw new Error("EXPIRED");
+    const tenancy = document.tenancy;
+    const occupancy = tenancy.occupancies.find((item) => item.status === "PENDING");
+    if (!occupancy) throw new Error("NOT_FOUND");
+    const initialsRecord = LEASE_CLAUSE_KEYS.map((key) => ({ clauseKey: key, initialedAt: new Date().toISOString() }));
+    await tx.occupancy.update({ where: { id: occupancy.id }, data: { status: "ACTIVE" } });
+    await tx.unit.update({ where: { id: occupancy.unitId }, data: { status: "OCCUPIED" } });
+    await tx.tenancy.update({ where: { id: tenancy.id }, data: { status: "ACTIVE" } });
+    await tx.document.update({ where: { id: document.id }, data: { status: "SIGNED", signerName: input.signerName, signerIp: input.signerIp, signerUserAgent: input.signerUserAgent, initials: initialsRecord, signedAt: new Date() } });
+    await tx.auditEvent.create({ data: { organisationId: tenancy.facility.organisationId, facilityId: tenancy.facilityId, actorId: null, action: "tenancy.lease_signed", entityType: "Document", entityId: document.id } });
+    return { tenancyId: tenancy.id };
+  });
+}
+
+/**
+ * Read-only lookup for the public /sign/[token] page — deliberately returns
+ * only what a signer needs to see (no internal IDs, no other tenants'
+ * data). Works for SENT (still to sign), SIGNED (already done — shows a
+ * confirmation instead of the form) and expired-but-still-SENT documents.
+ */
+export async function getLeaseForSigning(token: string) {
+  const document = await db.document.findFirst({
+    where: { signingToken: token },
+    include: { tenancy: { include: { customer: true, facility: true, occupancies: { include: { unit: true }, orderBy: { createdAt: "asc" } } } } },
+  });
+  if (!document) return null;
+  const occupancy = document.tenancy.occupancies[0];
+  const customerName = document.tenancy.customer.companyName || [document.tenancy.customer.firstName, document.tenancy.customer.lastName].filter(Boolean).join(" ") || "Customer";
+  return {
+    status: document.status as "SENT" | "SIGNED",
+    expired: document.status === "SENT" && Boolean(document.expiresAt) && document.expiresAt! < new Date(),
+    signerName: document.signerName,
+    signedAt: document.signedAt,
+    facilityName: document.tenancy.facility.name,
+    unitNumber: occupancy?.unit.number ?? "—",
+    customerName,
+    monthlyRate: Number(occupancy?.monthlyRate ?? 0),
+    startDate: document.tenancy.startDate,
+  };
 }
 
 export async function transfer(scope: RequestScope, input: { tenancyId: string; toUnitId: string; effectiveAt: Date; monthlyRate?: number }) {
