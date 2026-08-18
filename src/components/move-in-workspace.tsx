@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Plus, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
+import { buildLeaseClauses, LEASE_CLAUSE_KEYS, type LeaseClauseKey } from "@/lib/lease-agreement-content";
 
 type Unit = { id: string; facilityId: string; number: string; floor: string; zone: string; status: string; monthlyRate: number; typeName: string; width: number | null; length: number | null; area: number | null; features: string[] };
 type Facility = { id: string; name: string };
@@ -25,7 +26,7 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   const [customerBusy, setCustomerBusy] = useState(false);
   const [customerError, setCustomerError] = useState("");
   const [signerName, setSignerName] = useState("");
-  const [leaseAccepted, setLeaseAccepted] = useState(false);
+  const [initialed, setInitialed] = useState<Record<LeaseClauseKey, boolean>>({} as Record<LeaseClauseKey, boolean>);
   const available = useMemo(() => units.filter((unit) => unit.facilityId === facilityId && ["AVAILABLE", "RESERVED"].includes(unit.status)), [units, facilityId]);
   const floors = useMemo(() => [...new Set(available.map((unit) => unit.floor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en-ZA", { numeric: true, sensitivity: "base" })), [available]);
   const activeFilterCount = [filterKey !== "ALL", floorFilter !== "ALL", statusFilter !== "ALL", Boolean(find)].filter(Boolean).length;
@@ -48,7 +49,16 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   });
   const selected = units.find((unit) => unit.id === selectedId);
   const selectedCustomerName = customerOptions.find((customer) => customer.id === customerId)?.name ?? "";
-  const canCompleteMoveIn = leaseAccepted && signerName.trim().length >= 2;
+  const clauses = useMemo(() => buildLeaseClauses({
+    facilityName: facilities.find((facility) => facility.id === (selected?.facilityId ?? facilityId))?.name ?? "the selected facility",
+    unitNumber: selected?.number ?? "—",
+    unitTypeName: selected?.typeName,
+    customerName: selectedCustomerName || "the selected customer",
+    monthlyRate: selected?.monthlyRate ?? 0,
+    startDate: new Date(),
+  }), [facilities, facilityId, selected, selectedCustomerName]);
+  const allClausesInitialed = LEASE_CLAUSE_KEYS.every((key) => initialed[key]);
+  const canCompleteMoveIn = allClausesInitialed && signerName.trim().length >= 2;
 
   async function addCustomer(formData: FormData) {
     const text = (key: string) => String(formData.get(key) ?? "").trim();
@@ -71,10 +81,17 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
     </section> : <section className="panel panel-spacious"><form action={action} className="move-in-form"><input type="hidden" name="facilityId" value={selected?.facilityId ?? facilityId}/><input type="hidden" name="unitId" value={selectedId}/><label>Selected unit<input value={selected ? `${selected.number} · ${selected.typeName} · R ${selected.monthlyRate.toLocaleString("en-ZA")}` : ""} readOnly/></label><label>Customer<select name="customerId" required value={customerId} onChange={(event) => setCustomerId(event.target.value)}><option value="">Select customer</option>{customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select><button type="button" className="text-button move-in-add-customer" onClick={() => { setShowCustomer(true); setCustomerError(""); }}><Plus size={14}/>Add a new customer</button></label><label>Reservation (optional)<select name="reservationId"><option value="">Direct move-in</option>{reservations.filter((item) => item.unitId === selectedId).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Start date<input name="startDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label>Monthly rent<input name="monthlyRate" type="number" step=".01" defaultValue={selected?.monthlyRate}/></label><label>Initial charge<input name="initialCharge" type="number" step=".01" defaultValue="0"/><small>Provisional until the financial rules are confirmed.</small></label>
       <section className="lease-sign-panel">
         <h3>Lease agreement</h3>
-        <p className="lease-summary">STOR 24 storage licence agreement for unit <strong>{selected?.number ?? "—"}</strong> ({selected?.typeName ?? "—"}) at R {selected?.monthlyRate.toLocaleString("en-ZA", { minimumFractionDigits: 2 }) ?? "—"} per month, licensee <strong>{selectedCustomerName || "the selected customer"}</strong>. By signing, the customer accepts STOR 24&apos;s standard storage licence terms and conditions.</p>
-        <label>Customer&apos;s full legal name (typed as signature)<input name="signerName" required minLength={2} maxLength={120} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder="Type the customer's full name"/></label>
-        <label className="check-label"><input name="leaseAccepted" type="checkbox" required checked={leaseAccepted} onChange={(event) => setLeaseAccepted(event.target.checked)}/><span>The customer has read and agrees to the STOR 24 storage licence terms and conditions.</span></label>
-        <small>Signature is captured with a timestamp, IP address and device information as the audit trail for this lease.</small>
+        <p className="lease-summary" style={{ fontStyle: "italic" }}>Draft agreement — pending attorney review. Read each clause below and tick to initial it before signing.</p>
+        {clauses.map((clause) => <div className="lease-clause" key={clause.key}>
+          <h4>{clause.title}</h4>
+          <p>{clause.body}</p>
+          <label className="check-label">
+            <input type="checkbox" name={`initial_${clause.key}`} required checked={Boolean(initialed[clause.key])} onChange={(event) => setInitialed((current) => ({ ...current, [clause.key]: event.target.checked }))}/>
+            <span>I have read and initial this clause.</span>
+          </label>
+        </div>)}
+        <label>Customer&apos;s full legal name (typed as final signature)<input name="signerName" required minLength={2} maxLength={120} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder="Type the customer's full name"/></label>
+        <small>Signature is captured with a timestamp, IP address, device information and each clause initial as the audit trail for this lease.</small>
       </section>
       <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setStep(1)}><ArrowLeft size={16}/>Back</button><button className="button button-primary" disabled={!canCompleteMoveIn}>Complete move-in</button></div></form></section>}
     {step === 1 ? <div className="form-footer"><button className="button button-secondary" type="button" onClick={() => history.back()}><ArrowLeft size={16}/>Back</button><button className="button button-primary" type="button" disabled={!selectedId} onClick={() => setStep(2)}>Next<ArrowRight size={16}/></button></div> : null}
