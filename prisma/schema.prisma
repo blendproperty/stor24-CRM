@@ -555,6 +555,8 @@ model Document {
   signerName      String?
   signerIp        String?
   signerUserAgent String?
+  initials        Json?
+  clauseVersion   String?
   signedAt        DateTime?
   createdAt       DateTime  @default(now())
 
