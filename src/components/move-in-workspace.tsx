@@ -15,6 +15,8 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   const [selectedId, setSelectedId] = useState("");
   const [filterMode, setFilterMode] = useState<"size" | "area">("size");
   const [filterKey, setFilterKey] = useState("ALL");
+  const [floorFilter, setFloorFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [find, setFind] = useState("");
   const [step, setStep] = useState<1 | 2>(1);
   const [customerOptions, setCustomerOptions] = useState(customers);
@@ -23,6 +25,9 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   const [customerBusy, setCustomerBusy] = useState(false);
   const [customerError, setCustomerError] = useState("");
   const available = useMemo(() => units.filter((unit) => unit.facilityId === facilityId && ["AVAILABLE", "RESERVED"].includes(unit.status)), [units, facilityId]);
+  const floors = useMemo(() => [...new Set(available.map((unit) => unit.floor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en-ZA", { numeric: true, sensitivity: "base" })), [available]);
+  const activeFilterCount = [filterKey !== "ALL", floorFilter !== "ALL", statusFilter !== "ALL", Boolean(find)].filter(Boolean).length;
+  function clearFilters() { setFilterKey("ALL"); setFloorFilter("ALL"); setStatusFilter("ALL"); setFind(""); }
   const groups = useMemo(() => {
     const counts = new Map<string, { type: string; measure: string; count: number }>();
     available.forEach((unit) => {
@@ -34,7 +39,10 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   }, [available, filterMode]);
   const visible = available.filter((unit) => {
     const measure = filterMode === "area" ? (unit.area?.toFixed(1) ?? "Not set") : unit.width && unit.length ? `${unit.width.toFixed(1)} × ${unit.length.toFixed(1)} m` : "Not set";
-    return (filterKey === "ALL" || filterKey === `${unit.typeName}|${measure}`) && (!find || unit.number.toLowerCase().includes(find.toLowerCase()));
+    return (filterKey === "ALL" || filterKey === `${unit.typeName}|${measure}`)
+      && (floorFilter === "ALL" || unit.floor === floorFilter)
+      && (statusFilter === "ALL" || unit.status === statusFilter)
+      && (!find || unit.number.toLowerCase().includes(find.toLowerCase()));
   });
   const selected = units.find((unit) => unit.id === selectedId);
 
@@ -52,7 +60,7 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
     <PageHeader eyebrow="Operations centre · Accounts" title="Move in" description={step === 1 ? "Select an available unit using size or floor-area availability." : "Complete the customer and account details for the selected unit."}/>
     <div className="move-in-steps"><span className="active">1 Select unit</span><span className={step === 2 ? "active" : ""}>2 Account details</span></div>
     {step === 1 ? <section className="unit-selector-layout">
-      <article className="panel unit-results"><div className="unit-toolbar"><label>Store<select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setSelectedId(""); setFilterKey("ALL"); }}>{facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</select></label><label className="unit-find"><Search size={16}/><input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find unit number"/></label><strong>{visible.length} units</strong></div>
+      <article className="panel unit-results"><div className="unit-toolbar"><label>Store<select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setSelectedId(""); setFilterKey("ALL"); setFloorFilter("ALL"); }}>{facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</select></label><label>Floor<select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)}><option value="ALL">All floors</option>{floors.map((floor) => <option key={floor} value={floor}>{floor}</option>)}</select></label><label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">All statuses</option><option value="AVAILABLE">Vacant</option><option value="RESERVED">Reserved</option></select></label><label className="unit-find"><Search size={16}/><input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find unit number"/></label>{activeFilterCount > 0 ? <button type="button" className="text-button" onClick={clearFilters}><X size={14}/>Clear filters ({activeFilterCount})</button> : null}<strong>{visible.length} units</strong></div>
         <div className="table-wrap"><table className="data-table unit-table"><thead><tr><th>Unit</th><th>Type</th><th>Size</th><th>Area</th><th>Rent</th><th>Floor</th><th>Features</th><th>Status</th></tr></thead><tbody>{visible.map((unit) => <tr key={unit.id} className={selectedId === unit.id ? "selected" : ""} onClick={() => setSelectedId(unit.id)}><td><input aria-label={`Select unit ${unit.number}`} type="radio" checked={selectedId === unit.id} onChange={() => setSelectedId(unit.id)}/> <strong>{unit.number}</strong></td><td>{unit.typeName}</td><td>{unit.width && unit.length ? `${unit.width.toFixed(1)} × ${unit.length.toFixed(1)} m` : "—"}</td><td>{unit.area?.toFixed(1) ?? "—"} m²</td><td>R {unit.monthlyRate.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</td><td>{unit.floor || "—"}</td><td>{unit.features.join(", ") || unit.zone || "—"}</td><td><StatusPill tone={unit.status === "AVAILABLE" ? "positive" : "warning"}>{unit.status === "AVAILABLE" ? "Vacant" : "Reserved"}</StatusPill></td></tr>)}</tbody></table></div>
       </article>
       <aside className="unit-filter-panel"><section className="panel"><h3>Selected unit</h3><strong className="selected-unit-number">{selected?.number ?? "None"}</strong></section><section className="panel"><h3>Filter</h3><div className="filter-toggle"><label><input type="radio" checked={filterMode === "size"} onChange={() => { setFilterMode("size"); setFilterKey("ALL"); }}/>Size</label><label><input type="radio" checked={filterMode === "area"} onChange={() => { setFilterMode("area"); setFilterKey("ALL"); }}/>Area</label></div><button type="button" className={filterKey === "ALL" ? "filter-row active" : "filter-row"} onClick={() => setFilterKey("ALL")}><span>Vacant units</span><strong>{available.length}</strong></button>{groups.map((group) => <button type="button" className={filterKey === group.key ? "filter-row active" : "filter-row"} onClick={() => setFilterKey(group.key)} key={group.key}><span>{group.type}<small>{group.measure}</small></span><strong>{group.count}</strong></button>)}</section><section className="panel"><h3>Note</h3><p>{selected ? `${selected.typeName}, ${selected.area?.toFixed(1) ?? "area not set"} m² at R ${selected.monthlyRate.toLocaleString("en-ZA")} per month.` : "Select a unit to continue."}</p></section></aside>
