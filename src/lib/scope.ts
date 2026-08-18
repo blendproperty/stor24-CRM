@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/auth-guards";
+import { requirePermission, requireSession } from "@/lib/auth-guards";
 
 export type RequestScope = {
   userId: string;
@@ -22,6 +22,16 @@ export async function requireScope(): Promise<RequestScope> {
     organisationId: user.organisationId,
     facilityIds: assignments.flatMap((assignment) => assignment.facilityId ? [assignment.facilityId] : []),
     unrestrictedFacilities: assignments.some((assignment) => !assignment.facilityId),
+  };
+}
+
+export async function requirePermissionScope(permission: string, facilityId?: string): Promise<RequestScope> {
+  const auth = await requirePermission(permission, facilityId);
+  return {
+    userId: auth.user.id,
+    organisationId: auth.organisationId,
+    facilityIds: auth.allowedFacilityIds ?? [],
+    unrestrictedFacilities: auth.allowedFacilityIds === null,
   };
 }
 

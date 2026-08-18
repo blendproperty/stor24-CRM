@@ -1,6 +1,7 @@
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { facilityWhere, requireFacility, type RequestScope } from "@/lib/scope";
+import { revokeBiometricAccess } from "@/lib/biometric-access-service";
 
 type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 
@@ -105,7 +106,7 @@ export async function giveNotice(scope: RequestScope, input: { tenancyId: string
 }
 
 export async function moveOut(scope: RequestScope, input: { tenancyId: string; movedOutAt: Date; finalCharge: number; notes?: string }) {
-  return db.$transaction(async (tx) => {
+  const entity = await db.$transaction(async (tx) => {
     const tenancy = await tx.tenancy.findFirst({ where: { id: input.tenancyId, facility: facilityWhere(scope), status: { in: ["ACTIVE", "NOTICE_GIVEN"] } }, include: { occupancies: { where: { status: { in: ["ACTIVE", "NOTICE_GIVEN"] } } } } }); if (!tenancy) throw new Error("NOT_FOUND");
     await tx.occupancy.updateMany({ where: { tenancyId: tenancy.id, status: { in: ["ACTIVE", "NOTICE_GIVEN"] } }, data: { status: "MOVED_OUT", endDate: input.movedOutAt, accessState: "REVOKED" } });
     await tx.unit.updateMany({ where: { id: { in: tenancy.occupancies.map((o) => o.unitId) } }, data: { status: "AVAILABLE" } });
@@ -113,4 +114,7 @@ export async function moveOut(scope: RequestScope, input: { tenancyId: string; m
     if (input.finalCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: tenancy.accountId, type: "CHARGE", amount: input.finalCharge, description: input.notes || "Final move-out charge", effectiveAt: input.movedOutAt, createdById: scope.userId } }); await tx.account.update({ where: { id: tenancy.accountId }, data: { balance: { increment: input.finalCharge } } }); }
     await audit(tx, scope, "tenancy.moved_out", "Tenancy", entity.id, tenancy.facilityId); return entity;
   });
+  const activeBiometrics = await db.biometricEnrollment.findMany({ where: { occupancy: { tenancyId: entity.id }, status: "ACTIVE" }, select: { id: true } });
+  for (const enrollment of activeBiometrics) await revokeBiometricAccess(scope, enrollment.id);
+  return entity;
 }
