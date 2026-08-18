@@ -3,32 +3,12 @@ import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { facilityWhere, requireFacility, type RequestScope } from "@/lib/scope";
 import { revokeBiometricAccess } from "@/lib/biometric-access-service";
+import { LEASE_CLAUSE_KEYS, LEASE_VERSION, renderLeaseDocument, type LeaseClauseContext, type LeaseClauseKey } from "@/lib/lease-agreement-content";
 
 type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 
 function audit(tx: Tx, scope: RequestScope, action: string, entityType: string, entityId: string, facilityId?: string, before?: Prisma.InputJsonValue, after?: Prisma.InputJsonValue) {
   return tx.auditEvent.create({ data: { organisationId: scope.organisationId, facilityId, actorId: scope.userId, action, entityType, entityId, before, after } });
-}
-
-// NOTE: This is v1 boilerplate for the STOR 24 storage licence agreement, sufficient to
-// support a "simple electronic signature" under South Africa's ECT Act (identity + intent
-// to sign + an audit trail, captured below). It is not a substitute for review by an
-// attorney before go-live — Brett/legal should confirm final terms, insurance and
-// indemnity wording before this is relied on as the binding contract text.
-export function renderLeaseAgreement(input: { facilityName: string; unitNumber: string; unitTypeName?: string; customerName: string; monthlyRate: number; startDate: Date }) {
-  const formattedRate = `R ${input.monthlyRate.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
-  const formattedDate = input.startDate.toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
-  return [
-    "STOR 24 SELF-STORAGE LICENCE AGREEMENT",
-    "",
-    `Facility: ${input.facilityName}`,
-    `Unit: ${input.unitNumber}${input.unitTypeName ? ` (${input.unitTypeName})` : ""}`,
-    `Licensee: ${input.customerName}`,
-    `Monthly rate: ${formattedRate} (excl. applicable tax, subject to STOR 24's standard terms)`,
-    `Commencement date: ${formattedDate}`,
-    "",
-    "By signing below, the Licensee confirms they have read, understood and agree to be bound by STOR 24's standard storage licence terms and conditions, including access, insurance and payment obligations, as made available at the facility and on the STOR 24 website.",
-  ].join("\n");
 }
 
 export function hashDocument(content: string) {
@@ -97,8 +77,10 @@ export async function cancelReservation(scope: RequestScope, reservationId: stri
   });
 }
 
-export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string; signerName: string; signerIp?: string | null; signerUserAgent?: string | null }) {
+export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string; signerName: string; initials: LeaseClauseKey[]; signerIp?: string | null; signerUserAgent?: string | null }) {
   await requireFacility(scope, input.facilityId);
+  const missingClauses = LEASE_CLAUSE_KEYS.filter((key) => !input.initials.includes(key));
+  if (missingClauses.length > 0) throw new Error("CONFLICT");
   return db.$transaction(async (tx) => {
     const unit = await tx.unit.findFirst({ where: { id: input.unitId, facilityId: input.facilityId, status: { in: ["AVAILABLE", "RESERVED"] } }, include: { unitType: true } });
     const customer = await tx.customer.findFirst({ where: { id: input.customerId, organisationId: scope.organisationId } });
@@ -109,8 +91,10 @@ export async function moveIn(scope: RequestScope, input: { reservationId?: strin
     const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "ACTIVE", startDate: input.startDate, occupancies: { create: { unitId: unit.id, status: "ACTIVE", startDate: input.startDate, monthlyRate, accessState: input.accessState } } } });
     await tx.unit.update({ where: { id: unit.id }, data: { status: "OCCUPIED" } });
     const customerName = customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Customer";
-    const leaseContent = renderLeaseAgreement({ facilityName: facility.name, unitNumber: unit.number, unitTypeName: unit.unitType.name, customerName, monthlyRate: Number(monthlyRate), startDate: input.startDate });
-    await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "inline", content: leaseContent, sha256: hashDocument(leaseContent), signerName: input.signerName, signerIp: input.signerIp ?? null, signerUserAgent: input.signerUserAgent ?? null, signedAt: new Date() } });
+    const clauseContext: LeaseClauseContext = { facilityName: facility.name, unitNumber: unit.number, unitTypeName: unit.unitType.name, customerName, monthlyRate: Number(monthlyRate), startDate: input.startDate };
+    const leaseContent = renderLeaseDocument(clauseContext);
+    const initialsRecord = LEASE_CLAUSE_KEYS.map((key) => ({ clauseKey: key, initialedAt: new Date().toISOString() }));
+    await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "inline", content: leaseContent, sha256: hashDocument(leaseContent), signerName: input.signerName, signerIp: input.signerIp ?? null, signerUserAgent: input.signerUserAgent ?? null, initials: initialsRecord, clauseVersion: LEASE_VERSION, signedAt: new Date() } });
     if (input.initialCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge", effectiveAt: input.startDate, createdById: scope.userId } }); await tx.account.update({ where: { id: account.id }, data: { balance: { increment: input.initialCharge } } }); }
     if (input.reservationId) await tx.reservation.update({ where: { id: input.reservationId }, data: { status: "CONVERTED", convertedTenancyId: tenancy.id } });
     await audit(tx, scope, "tenancy.moved_in", "Tenancy", tenancy.id, input.facilityId); return tenancy;
