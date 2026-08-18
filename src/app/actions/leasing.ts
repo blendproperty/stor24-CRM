@@ -1,13 +1,12 @@
 "use server";
 
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createCustomer, createFacility, createLead, createReservation, createUnit, createUnitType, giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
+import { sendLeaseSigningLink } from "@/lib/notifications";
 import { requireScope } from "@/lib/scope";
 import { customerSchema, facilitySchema, leadSchema, moveInSchema, moveOutSchema, noticeSchema, reservationSchema, transferSchema, unitSchema, unitTypeSchema } from "@/lib/validators";
 import { requirePermission } from "@/lib/auth-guards";
-import { LEASE_CLAUSE_KEYS } from "@/lib/lease-agreement-content";
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim() || undefined;
 const number = (data: FormData, key: string) => text(data, key) ? Number(text(data, key)) : undefined;
@@ -37,14 +36,35 @@ export async function reserveAction(data: FormData) {
   const parsed = reservationSchema.parse({ facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), leadId: text(data, "leadId"), unitId: text(data, "unitId"), quotedRate: number(data, "quotedRate"), holdExpiresAt: text(data, "holdExpiresAt"), intendedMoveIn: text(data, "intendedMoveIn") });
   await createReservation(await requireScope(), parsed); revalidatePath("/leads");
 }
+
+/**
+ * Starts a move-in and sends the lease out for signature (DocuSign-style)
+ * instead of completing it inline. The unit is held (RESERVED) and the
+ * tenancy is created as DRAFT; both flip to live (OCCUPIED / ACTIVE) only
+ * once the customer signs via the public /sign/[token] link emailed here.
+ * See completeLeaseSigning() in leasing-service.ts for that second half.
+ */
 export async function moveInAction(data: FormData) {
   await requirePermission("move_in.create");
-  const initials = LEASE_CLAUSE_KEYS.filter((key) => data.get(`initial_${key}`) === "on");
-  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING", signerName: text(data, "signerName"), initials });
-  const requestHeaders = await headers();
-  const signerIp = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
-  const signerUserAgent = requestHeaders.get("user-agent") || null;
-  await moveIn(await requireScope(), { ...parsed, signerIp, signerUserAgent }); revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
+  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING" });
+  const scope = await requireScope();
+  const result = await moveIn(scope, parsed);
+  const signingUrl = `${process.env.APP_URL ?? ""}/sign/${result.document.signingToken}`;
+  await sendLeaseSigningLink({
+    organisationId: scope.organisationId,
+    facilityId: parsed.facilityId,
+    customerId: parsed.customerId,
+    documentId: result.document.id,
+    to: { email: result.customer.email },
+    variables: {
+      customerName: result.customer.companyName || [result.customer.firstName, result.customer.lastName].filter(Boolean).join(" ") || "there",
+      facilityName: result.facility.name,
+      unitNumber: result.unit.number,
+      signingUrl,
+      expiresAt: result.document.expiresAt ? result.document.expiresAt.toLocaleDateString("en-ZA") : "",
+    },
+  });
+  revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
 }
 export async function transferAction(data: FormData) { await requirePermission("operations.manage"); const parsed = transferSchema.parse({ tenancyId: text(data, "tenancyId"), toUnitId: text(data, "toUnitId"), effectiveAt: text(data, "effectiveAt"), monthlyRate: number(data, "monthlyRate") }); await transfer(await requireScope(), parsed); revalidatePath("/tenants"); }
 export async function noticeAction(data: FormData) { await requirePermission("collections.manage"); const parsed = noticeSchema.parse({ tenancyId: text(data, "tenancyId"), noticeDate: text(data, "noticeDate"), plannedMoveOut: text(data, "plannedMoveOut") }); await giveNotice(await requireScope(), parsed); revalidatePath("/tenants"); }
