@@ -550,6 +550,7 @@ model Document {
   tenancy         Tenancy   @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   type            String
   storageKey      String
+  status          String    @default("SIGNED")
   content         String?
   sha256          String?
   signerName      String?
@@ -557,6 +558,9 @@ model Document {
   signerUserAgent String?
   initials        Json?
   clauseVersion   String?
+  signingToken    String?   @unique
+  sentAt          DateTime?
+  expiresAt       DateTime?
   signedAt        DateTime?
   createdAt       DateTime  @default(now())
 
