@@ -7,6 +7,7 @@ import { createCustomer, createFacility, createLead, createReservation, createUn
 import { requireScope } from "@/lib/scope";
 import { customerSchema, facilitySchema, leadSchema, moveInSchema, moveOutSchema, noticeSchema, reservationSchema, transferSchema, unitSchema, unitTypeSchema } from "@/lib/validators";
 import { requirePermission } from "@/lib/auth-guards";
+import { LEASE_CLAUSE_KEYS } from "@/lib/lease-agreement-content";
 
 const text = (data: FormData, key: string) => String(data.get(key) ?? "").trim() || undefined;
 const number = (data: FormData, key: string) => text(data, key) ? Number(text(data, key)) : undefined;
@@ -38,7 +39,8 @@ export async function reserveAction(data: FormData) {
 }
 export async function moveInAction(data: FormData) {
   await requirePermission("move_in.create");
-  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING", signerName: text(data, "signerName"), leaseAccepted: data.get("leaseAccepted") === "on" });
+  const initials = LEASE_CLAUSE_KEYS.filter((key) => data.get(`initial_${key}`) === "on");
+  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING", signerName: text(data, "signerName"), initials });
   const requestHeaders = await headers();
   const signerIp = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
   const signerUserAgent = requestHeaders.get("user-agent") || null;
