@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, Plus, Search, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusPill } from "@/components/status-pill";
-import { buildLeaseClauses, LEASE_CLAUSE_KEYS, type LeaseClauseKey } from "@/lib/lease-agreement-content";
 
 type Unit = { id: string; facilityId: string; number: string; floor: string; zone: string; status: string; monthlyRate: number; typeName: string; width: number | null; length: number | null; area: number | null; features: string[] };
 type Facility = { id: string; name: string };
@@ -25,8 +24,6 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   const [showCustomer, setShowCustomer] = useState(false);
   const [customerBusy, setCustomerBusy] = useState(false);
   const [customerError, setCustomerError] = useState("");
-  const [signerName, setSignerName] = useState("");
-  const [initialed, setInitialed] = useState<Record<LeaseClauseKey, boolean>>({} as Record<LeaseClauseKey, boolean>);
   const available = useMemo(() => units.filter((unit) => unit.facilityId === facilityId && ["AVAILABLE", "RESERVED"].includes(unit.status)), [units, facilityId]);
   const floors = useMemo(() => [...new Set(available.map((unit) => unit.floor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "en-ZA", { numeric: true, sensitivity: "base" })), [available]);
   const activeFilterCount = [filterKey !== "ALL", floorFilter !== "ALL", statusFilter !== "ALL", Boolean(find)].filter(Boolean).length;
@@ -48,17 +45,7 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
       && (!find || unit.number.toLowerCase().includes(find.toLowerCase()));
   });
   const selected = units.find((unit) => unit.id === selectedId);
-  const selectedCustomerName = customerOptions.find((customer) => customer.id === customerId)?.name ?? "";
-  const clauses = useMemo(() => buildLeaseClauses({
-    facilityName: facilities.find((facility) => facility.id === (selected?.facilityId ?? facilityId))?.name ?? "the selected facility",
-    unitNumber: selected?.number ?? "—",
-    unitTypeName: selected?.typeName,
-    customerName: selectedCustomerName || "the selected customer",
-    monthlyRate: selected?.monthlyRate ?? 0,
-    startDate: new Date(),
-  }), [facilities, facilityId, selected, selectedCustomerName]);
-  const allClausesInitialed = LEASE_CLAUSE_KEYS.every((key) => initialed[key]);
-  const canCompleteMoveIn = allClausesInitialed && signerName.trim().length >= 2;
+  const canSendForSignature = Boolean(customerId) && Boolean(selectedId);
 
   async function addCustomer(formData: FormData) {
     const text = (key: string) => String(formData.get(key) ?? "").trim();
@@ -71,7 +58,7 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
   }
 
   return <div className="page-stack">
-    <PageHeader eyebrow="Operations centre · Accounts" title="Move in" description={step === 1 ? "Select an available unit using size or floor-area availability." : "Complete the customer, account details and lease signature for the selected unit."}/>
+    <PageHeader eyebrow="Operations centre · Accounts" title="Move in" description={step === 1 ? "Select an available unit using size or floor-area availability." : "Complete the customer and account details, then send the lease agreement for the customer to review and sign."}/>
     <div className="move-in-steps"><span className="active">1 Select unit</span><span className={step === 2 ? "active" : ""}>2 Account details</span></div>
     {step === 1 ? <section className="unit-selector-layout">
       <article className="panel unit-results"><div className="unit-toolbar"><label>Store<select value={facilityId} onChange={(event) => { setFacilityId(event.target.value); setSelectedId(""); setFilterKey("ALL"); setFloorFilter("ALL"); }}>{facilities.map((facility) => <option key={facility.id} value={facility.id}>{facility.name}</option>)}</select></label><label>Floor<select value={floorFilter} onChange={(event) => setFloorFilter(event.target.value)}><option value="ALL">All floors</option>{floors.map((floor) => <option key={floor} value={floor}>{floor}</option>)}</select></label><label>Status<select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="ALL">All statuses</option><option value="AVAILABLE">Vacant</option><option value="RESERVED">Reserved</option></select></label><label className="unit-find"><Search size={16}/><input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Find unit number"/></label>{activeFilterCount > 0 ? <button type="button" className="text-button" onClick={clearFilters}><X size={14}/>Clear filters ({activeFilterCount})</button> : null}<strong>{visible.length} units</strong></div>
@@ -81,19 +68,9 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
     </section> : <section className="panel panel-spacious"><form action={action} className="move-in-form"><input type="hidden" name="facilityId" value={selected?.facilityId ?? facilityId}/><input type="hidden" name="unitId" value={selectedId}/><label>Selected unit<input value={selected ? `${selected.number} · ${selected.typeName} · R ${selected.monthlyRate.toLocaleString("en-ZA")}` : ""} readOnly/></label><label>Customer<select name="customerId" required value={customerId} onChange={(event) => setCustomerId(event.target.value)}><option value="">Select customer</option>{customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select><button type="button" className="text-button move-in-add-customer" onClick={() => { setShowCustomer(true); setCustomerError(""); }}><Plus size={14}/>Add a new customer</button></label><label>Reservation (optional)<select name="reservationId"><option value="">Direct move-in</option>{reservations.filter((item) => item.unitId === selectedId).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Start date<input name="startDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label>Monthly rent<input name="monthlyRate" type="number" step=".01" defaultValue={selected?.monthlyRate}/></label><label>Initial charge<input name="initialCharge" type="number" step=".01" defaultValue="0"/><small>Provisional until the financial rules are confirmed.</small></label>
       <section className="lease-sign-panel">
         <h3>Lease agreement</h3>
-        <p className="lease-summary" style={{ fontStyle: "italic" }}>Draft agreement — pending attorney review. Read each clause below and tick to initial it before signing.</p>
-        {clauses.map((clause) => <div className="lease-clause" key={clause.key}>
-          <h4>{clause.title}</h4>
-          <p>{clause.body}</p>
-          <label className="check-label">
-            <input type="checkbox" name={`initial_${clause.key}`} required checked={Boolean(initialed[clause.key])} onChange={(event) => setInitialed((current) => ({ ...current, [clause.key]: event.target.checked }))}/>
-            <span>I have read and initial this clause.</span>
-          </label>
-        </div>)}
-        <label>Customer&apos;s full legal name (typed as final signature)<input name="signerName" required minLength={2} maxLength={120} value={signerName} onChange={(event) => setSignerName(event.target.value)} placeholder="Type the customer's full name"/></label>
-        <small>Signature is captured with a timestamp, IP address, device information and each clause initial as the audit trail for this lease.</small>
+        <p className="lease-summary" style={{ fontStyle: "italic" }}>Draft agreement — pending attorney review. The customer will receive an emailed link to review every clause, initial each one and sign — the unit stays held (not occupied) until they do.</p>
       </section>
-      <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setStep(1)}><ArrowLeft size={16}/>Back</button><button className="button button-primary" disabled={!canCompleteMoveIn}>Complete move-in</button></div></form></section>}
+      <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setStep(1)}><ArrowLeft size={16}/>Back</button><button className="button button-primary" disabled={!canSendForSignature}>Send lease for signature</button></div></form></section>}
     {step === 1 ? <div className="form-footer"><button className="button button-secondary" type="button" onClick={() => history.back()}><ArrowLeft size={16}/>Back</button><button className="button button-primary" type="button" disabled={!selectedId} onClick={() => setStep(2)}>Next<ArrowRight size={16}/></button></div> : null}
     {showCustomer ? <div className="modal-backdrop"><div className="modal-card" role="dialog" aria-modal="true"><button className="modal-close" onClick={() => setShowCustomer(false)}><X size={18}/></button><p className="eyebrow">Move in</p><h2>Add customer</h2><p className="modal-copy">Create the operational customer record without leaving the move-in workflow.</p><form action={addCustomer} className="invite-form"><label>Customer type<select name="type" defaultValue="INDIVIDUAL"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label><label>First name<input name="firstName"/></label><label>Last name<input name="lastName"/></label><label>Company name<input name="companyName"/></label><label>Mobile / phone<input name="phone"/></label><label>Email<input name="email" type="email"/></label><label>SA ID or passport<input name="identityRef"/></label><label>City<input name="city"/></label><label>Province<input name="province"/></label><label className="check-label"><input name="emailConsent" type="checkbox"/><span>Email consent</span></label><label className="check-label"><input name="smsConsent" type="checkbox"/><span>SMS consent</span></label>{customerError ? <p className="form-error">{customerError}</p> : null}<div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setShowCustomer(false)}>Cancel</button><button className="button button-primary" disabled={customerBusy}>{customerBusy ? "Saving…" : "Add customer"}</button></div></form></div></div> : null}
   </div>;
