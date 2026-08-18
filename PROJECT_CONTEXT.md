@@ -38,6 +38,7 @@ Branches exist only as short-lived rollback/review points before merging into `m
 - Public booking API for customer-safe facility, map, unit and availability reads plus secured reservation submission.
 - Transactional unit claiming, idempotency, rate limiting, consent/audit capture, honeypot and reCAPTCHA support in the booking boundary. The public booking form now has real per-channel consent checkboxes again (email/SMS+WhatsApp/phone) instead of hardcoded values.
 - Docker production configuration and documented deployment procedure.
+- **Move-in unit selector filtering (`move-in-workspace.tsx`), 18 August 2026:** the `/operations/move-in` unit table previously only supported store selection, free-text search, and a type+size/area breakdown panel — no way to filter by floor or status. Added a Floor dropdown (populated from the units actually available at the selected store) and a Status dropdown (Vacant/Reserved), plus a "Clear filters" control that shows an active-filter count and resets store-independent filters in one click. All filters compose (AND'd together with search and the existing type/size grouping). Code-only, not yet deployed/visually verified.
 
 Use `README.md`, `docs/LEASING_CORE.md`, `docs/OPERATIONS_SETUP.md`, `docs/REPORTING_INTEGRATIONS.md` and `docs/EVIDENCE_TO_BUILD_MATRIX.md` for implementation detail.
 
@@ -65,6 +66,7 @@ The presence of screens, schema, interfaces or provider-neutral foundations does
 - **Recurring billing endpoint proven live 18 August 2026** (see Implemented foundations) — reachable, authenticated correctly, returns a real (zero-count, expected) summary. Not yet proven against real occupancy data with a nonzero charge, and the crontab schedule on the VPS still needs final confirmation.
 - **Reservation-to-tenancy move-in engine (`moveIn()`) reviewed 18 August 2026 and confirmed code-complete and correctly wired to real routes/screens (see Implemented foundations), but not yet live-tested.** This is the main remaining gap on "complete core customer-to-reservation-to-lease lifecycle": the engine looks solid on inspection, but nobody has run it live.
 - **Move-in unit-status colour fix, 18 August 2026:** the `/operations/move-in` unit table was rendering "Vacant"/"Reserved" as plain text with no visual distinction. Fixed by reusing the existing `StatusPill` component and `.status-positive`/`.status-warning` design tokens (green/amber, already used in `unit-inventory-workspace.tsx`) instead of inventing new styling — Vacant is now `positive` (green), Reserved is now `warning` (amber). Code-only change, not yet deployed/visually verified in production; needs a rebuild and a look at `/operations/move-in` to confirm the badges render as expected.
+- **Move-in Floor/Status filtering added, 18 August 2026** (see Implemented foundations) — same deploy/visual-verification caveat as the status-pill fix above: pushed to `main`, not yet confirmed live on `/operations/move-in`.
 - The public website previously returned HTTP 404 for `/book`; CRM health alone does not prove the customer journey.
 - Do not claim providers, finance sync or customer lifecycle automation are operational without current configuration plus end-to-end evidence.
 
@@ -156,10 +158,11 @@ Coordinate API/schema changes across all three repositories. Never silently dupl
 2. With explicit approval, prove the reservation cancel path (reserve side is already live-tested — see Current status and evidence limits).
 3. Confirm the monthly billing cron schedule is correctly installed on the VPS (`crontab -e`, hitting the production domain with the correct hashed secret) and, once real ACTIVE occupancies exist, prove a nonzero idempotent charge run.
 4. Live-test the `moveIn()` reservation-to-tenancy conversion against one of the two live Midpoint reservations, and confirm the billing engine correctly picks up the resulting occupancy in its next run.
-5. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
-6. Select and implement payment and Hikvision access providers — both are hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus e-signature and insurance providers through the existing provider boundaries.
-7. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
-8. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
+5. Deploy and visually verify the move-in status-pill and Floor/Status filter changes on `/operations/move-in`.
+6. Close the MRI decision pack: system ownership, mapping, posting model, reconciliation, exception owner and sandbox access.
+7. Select and implement payment and Hikvision access providers — both are hard blockers for the approved pilot scope (see Pilot facility and first-release scope above) — plus e-signature and insurance providers through the existing provider boundaries.
+8. Replace remaining scaffold/demo repositories with scoped database-backed behaviour.
+9. Complete migration planning, UAT, training, monitoring, recovery and production readiness gates.
 
 ## Working rules for any AI assistant
 
