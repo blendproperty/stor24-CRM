@@ -178,7 +178,7 @@ model Organisation {
   auditEvents            AuditEvent[]
   integrations           IntegrationConnection[]
   reportSchedules        ReportSchedule[]
-  reportRuns             ReportRun[]
+  reportRuns              ReportRun[]
   communicationTemplates CommunicationTemplate[]
   communications         CommunicationLog[]
   webhookInbox           WebhookInbox[]
@@ -248,7 +248,7 @@ model Facility {
   reportRuns            ReportRun[]
   communications        CommunicationLog[]
   webhookInbox          WebhookInbox[]
-  webhookOutbox         WebhookOutbox[]
+  webhookOutbox          WebhookOutbox[]
   biometricEnrollments  BiometricEnrollment[]
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
@@ -545,14 +545,18 @@ model Payment {
 }
 
 model Document {
-  id         String    @id @default(cuid())
-  tenancyId  String
-  tenancy    Tenancy   @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
-  type       String
-  storageKey String
-  sha256     String?
-  signedAt   DateTime?
-  createdAt  DateTime  @default(now())
+  id              String    @id @default(cuid())
+  tenancyId       String
+  tenancy         Tenancy   @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
+  type            String
+  storageKey      String
+  content         String?
+  sha256          String?
+  signerName      String?
+  signerIp        String?
+  signerUserAgent String?
+  signedAt        DateTime?
+  createdAt       DateTime  @default(now())
 
   @@index([tenancyId, type])
 }
