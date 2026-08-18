@@ -1,0 +1,175 @@
+/* Dashboard-specific chart styles. Kept in its own file (rather than globals.css)
+   so this feature can be reviewed and iterated on without touching the shared
+   stylesheet. Reuses the app's existing panel/metric-card/bar-chart tokens
+   where possible; falls back to sensible defaults for any CSS var not
+   already defined globally. */
+
+.line-chart-wrap {
+  padding-top: 8px;
+}
+
+.line-chart {
+  width: 100%;
+  height: 180px;
+  overflow: visible;
+}
+
+.line-chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  gap: 4px;
+}
+
+.line-chart-labels span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10px;
+  color: var(--muted, #8a93a6);
+  flex: 1;
+}
+
+.line-chart-labels b {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink, #16202e);
+}
+
+.revenue-dual-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 220px;
+  padding-top: 20px;
+  border-bottom: 1px solid var(--line, #e6e9ef);
+}
+
+.revenue-dual-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.revenue-dual-bar-track {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 180px;
+  width: 100%;
+  justify-content: center;
+}
+
+.revenue-dual-bar-track span {
+  display: block;
+  width: 40%;
+  border-radius: 5px 5px 0 0;
+  min-height: 2px;
+}
+
+.revenue-bar-billed {
+  background: linear-gradient(180deg, var(--orange, #ff6a1a), #ff9c64);
+}
+
+.revenue-bar-collected {
+  background: linear-gradient(180deg, #1d9e75, #6fd3ac);
+}
+
+.revenue-dual-bar small {
+  font-size: 9px;
+  color: var(--muted, #8a93a6);
+}
+
+.chart-legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--muted, #8a93a6);
+}
+
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.legend-billed {
+  background: var(--orange, #ff6a1a);
+}
+
+.legend-collected {
+  background: #1d9e75;
+}
+
+.unit-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+.unit-status-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted, #8a93a6);
+  border-bottom: 1px solid var(--line, #e6e9ef);
+}
+
+.unit-status-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--line, #e6e9ef);
+}
+
+.unit-status-table tr:last-child td {
+  border-bottom: none;
+}
+
+.occupancy-pct-cell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.occupancy-pct-cell::before {
+  content: "";
+  display: inline-block;
+  width: 60px;
+  height: 6px;
+  border-radius: 999px;
+  background: #edf0f4;
+}
+
+.occupancy-pct-cell i {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  border-radius: 999px;
+  background: var(--orange, #ff6a1a);
+  max-width: 60px;
+}
+
+.empty-row {
+  text-align: center;
+  color: var(--muted, #8a93a6);
+  padding: 24px 0;
+}
