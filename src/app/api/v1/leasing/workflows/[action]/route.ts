@@ -12,6 +12,13 @@ export async function POST(request: Request, context: { params: Promise<{ action
     const { action } = await context.params; const command = commands[action as keyof typeof commands]; if (!command) throw new Error("NOT_FOUND");
     const parsed = command[0].safeParse(await jsonBody(request)); if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", message: "Check the submitted account details.", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     await requirePermission(permissions[action as keyof typeof permissions]);
-    const scope = await requireScope(); const data = await (command[1] as (s: typeof scope, i: never) => Promise<unknown>)(scope, parsed.data as never); return Response.json({ data });
+    const scope = await requireScope();
+    // Move-in captures a lease e-signature audit trail; the signer IP/user-agent are taken
+    // from the request itself (not client-supplied body fields) so they can't be spoofed.
+    const input = action === "move-in"
+      ? { ...(parsed.data as object), signerIp: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null, signerUserAgent: request.headers.get("user-agent") || null }
+      : parsed.data;
+    const data = await (command[1] as (s: typeof scope, i: never) => Promise<unknown>)(scope, input as never);
+    return Response.json({ data });
   } catch (error) { return apiError(error); }
 }
