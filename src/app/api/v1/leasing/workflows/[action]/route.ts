@@ -1,5 +1,6 @@
 import { apiError, jsonBody } from "@/lib/api";
 import { giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
+import { sendLeaseSigningLink } from "@/lib/notifications";
 import { requireScope } from "@/lib/scope";
 import { requirePermission } from "@/lib/auth-guards";
 import { moveInSchema, moveOutSchema, noticeSchema, transferSchema } from "@/lib/validators";
@@ -13,12 +14,28 @@ export async function POST(request: Request, context: { params: Promise<{ action
     const parsed = command[0].safeParse(await jsonBody(request)); if (!parsed.success) return Response.json({ error: { code: "VALIDATION_ERROR", message: "Check the submitted account details.", fields: parsed.error.flatten().fieldErrors } }, { status: 422 });
     await requirePermission(permissions[action as keyof typeof permissions]);
     const scope = await requireScope();
-    // Move-in captures a lease e-signature audit trail; the signer IP/user-agent are taken
-    // from the request itself (not client-supplied body fields) so they can't be spoofed.
-    const input = action === "move-in"
-      ? { ...(parsed.data as object), signerIp: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null, signerUserAgent: request.headers.get("user-agent") || null }
-      : parsed.data;
-    const data = await (command[1] as (s: typeof scope, i: never) => Promise<unknown>)(scope, input as never);
+    const data = await (command[1] as (s: typeof scope, i: never) => Promise<unknown>)(scope, parsed.data as never);
+    // Move-in no longer signs the lease inline — it sends a signing link
+    // (DocuSign-style) to the customer. See moveIn()/completeLeaseSigning()
+    // in leasing-service.ts and the public /sign/[token] page.
+    if (action === "move-in") {
+      const result = data as Awaited<ReturnType<typeof moveIn>>;
+      const signingUrl = `${process.env.APP_URL ?? ""}/sign/${result.document.signingToken}`;
+      await sendLeaseSigningLink({
+        organisationId: scope.organisationId,
+        facilityId: result.tenancy.facilityId,
+        customerId: result.customer.id,
+        documentId: result.document.id,
+        to: { email: result.customer.email },
+        variables: {
+          customerName: result.customer.companyName || [result.customer.firstName, result.customer.lastName].filter(Boolean).join(" ") || "there",
+          facilityName: result.facility.name,
+          unitNumber: result.unit.number,
+          signingUrl,
+          expiresAt: result.document.expiresAt ? result.document.expiresAt.toLocaleDateString("en-ZA") : "",
+        },
+      });
+    }
     return Response.json({ data });
   } catch (error) { return apiError(error); }
 }
