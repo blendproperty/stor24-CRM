@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createCustomer, createFacility, createLead, createReservation, createUnit, createUnitType, giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
@@ -37,8 +38,11 @@ export async function reserveAction(data: FormData) {
 }
 export async function moveInAction(data: FormData) {
   await requirePermission("move_in.create");
-  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING" });
-  await moveIn(await requireScope(), parsed); revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
+  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING", signerName: text(data, "signerName"), leaseAccepted: data.get("leaseAccepted") === "on" });
+  const requestHeaders = await headers();
+  const signerIp = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
+  const signerUserAgent = requestHeaders.get("user-agent") || null;
+  await moveIn(await requireScope(), { ...parsed, signerIp, signerUserAgent }); revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
 }
 export async function transferAction(data: FormData) { await requirePermission("operations.manage"); const parsed = transferSchema.parse({ tenancyId: text(data, "tenancyId"), toUnitId: text(data, "toUnitId"), effectiveAt: text(data, "effectiveAt"), monthlyRate: number(data, "monthlyRate") }); await transfer(await requireScope(), parsed); revalidatePath("/tenants"); }
 export async function noticeAction(data: FormData) { await requirePermission("collections.manage"); const parsed = noticeSchema.parse({ tenancyId: text(data, "tenancyId"), noticeDate: text(data, "noticeDate"), plannedMoveOut: text(data, "plannedMoveOut") }); await giveNotice(await requireScope(), parsed); revalidatePath("/tenants"); }
