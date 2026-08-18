@@ -12,55 +12,53 @@ provider (DocuSign, etc.). Scope, confirmed via three explicit choices:
   accepted, signed lease.
 - Priority: build now, v1.
 
-> **18 Aug 2026 — Brett flagged v1 as insufficient.** The typed-name + single-checkbox flow below is a
-> mechanism for capturing *a* signature and audit trail, but is not yet a real, bindable agreement. See
-> "Outstanding before this is done" below — real agreement text with per-clause initials is required
-> before this feature can be relied on for actual tenants.
+> **18 Aug 2026 — v2 shipped.** Brett flagged the original v1 (typed-name + single checkbox against a
+> short summary) as insufficient — there needs to be an actual agreement the customer initials
+> clause-by-clause and signs. This has now been built (see "What 'signed' means here" below); the
+> remaining blocking gap is that the clause wording itself is still placeholder text pending
+> attorney/Brett review — see "Outstanding before this is done".
 
-## What "signed" means here (v1 — see gaps below)
+## What "signed" means here (v2)
 
-At `moveIn()`, the system renders lease text from the tenancy's own data (facility, unit, customer,
-rate, start date), hashes it (SHA-256), and stores the rendered text + hash + signer identity in a new
-`Document` row, all inside the same DB transaction as the tenancy creation. The signer types their full
-legal name into the move-in form and ticks an explicit acceptance checkbox; both are required fields
-(`signerName`, `leaseAccepted: true`) enforced by the `moveInSchema` zod validator — move-in fails with
-`422 VALIDATION_ERROR` if either is missing.
+At `moveIn()`, the system builds the lease as a **structured list of clauses** (`src/lib/lease-agreement-content.ts`
+— premises & use, term & rent, access & security, insurance & liability, prohibited items, default &
+termination, data & privacy), renders the full document text from them, hashes it (SHA-256), and stores
+content + hash + signer identity + per-clause initials in a `Document` row, all inside the same DB
+transaction as the tenancy creation. In the move-in UI, every clause is displayed with its own required
+"I have read and initial this clause" checkbox — the customer must tick all of them — plus a final typed
+full legal name as signature. `moveIn()`/`moveInSchema` reject the request (`422 VALIDATION_ERROR`, or
+`CONFLICT` if it somehow reaches the service layer without all clauses) unless every clause key in
+`LEASE_CLAUSE_KEYS` is present in `initials`.
 
 Audit trail captured per signature:
 
-- `signerName` — typed full name (from the form)
-- `signerIp` — from `x-forwarded-for`, read server-side from the request, never trusted from the client body
-- `signerUserAgent` — from the `user-agent` header, same treatment
+- `signerName` — typed full name (final signature)
+- `initials` — JSON array of `{ clauseKey, initialedAt }` for every clause, so which clauses were
+  affirmatively initialled (and when) is recoverable per signature
+- `clauseVersion` — the `LEASE_VERSION` string from `lease-agreement-content.ts` at the time of signing,
+  so future clause wording changes don't retroactively change what a historical signer is deemed to have agreed to
+- `signerIp` / `signerUserAgent` — from request headers, read server-side, never trusted from the client body
 - `signedAt` — server timestamp
-- `content` — the exact lease text shown to the signer
-- `sha256` — hash of `content`, so any future edit to rendered lease text is detectable against historical signatures
+- `content` — the exact, full rendered agreement text (all clauses) shown to the signer
+- `sha256` — hash of `content`
 
-## Outstanding before this is done (blocking, added 18 Aug 2026)
+## Outstanding before this is fully done
 
-Brett's instruction: there needs to be an actual agreement **initialled and signed** by a prospective
-unit tenant — not just a typed name against a short on-screen summary. Required before this feature can
-be considered complete:
-
-1. **Real agreement text.** Replace the placeholder summary produced by `renderLeaseAgreement()`
-   (`src/lib/leasing-service.ts`) with the actual STOR 24 storage licence agreement — the full clause
-   text (access, insurance, payment/default, termination, etc.), reviewed and approved by Brett or an
-   attorney before go-live.
-2. **Verbatim signer-facing view.** The signer must see the real, full agreement text before signing —
-   not a summary. This absorbs the previously-separate "no signer-facing document viewer" gap below.
-3. **Per-clause initials, not just a single signature.** The customer should affirmatively initial each
-   substantive clause (not only tick one box and type a name once) before the final signature at the
-   end of the document.
-4. **Audit trail granularity.** Once initials are per-clause, decide whether one whole-document
-   `sha256` is still sufficient evidence, or whether each initialled clause needs its own captured
-   hash/timestamp.
-
-This is a data-model and UI change beyond v1 (likely: a structured clause list instead of one
-`content` string, and an `initials` record per clause per signature) — not a small tweak to the
-existing typed-name flow.
+1. **Real, attorney-reviewed clause text.** `src/lib/lease-agreement-content.ts` currently contains
+   drafted-but-not-approved boilerplate for each clause (marked `DRAFT` in the file header and on
+   screen). Brett or STOR 24's attorney needs to review and approve the actual wording — access terms,
+   insurance, payment/default, termination, POPIA/data clause — before this is relied on for real
+   tenants. Once approved, update the clause bodies in that file and bump `LEASE_VERSION`.
+2. **PDF rendering / durable storage** — still not built; `content` lives inline in Postgres. See Known
+   gaps below.
+3. **Per-clause hash granularity** — currently one `sha256` covers the whole rendered document (all
+   clauses together), not one hash per clause. Revisit if a dispute ever needs to isolate exactly what
+   was shown for a single clause versus the document as a whole; not considered a blocker for v2 since
+   `content` + `clauseVersion` already pin the exact full text shown.
 
 ## Data model
 
-`Document` (existing model, extended additively — migration `20260818120000_lease_esignature`):
+`Document` (existing model, extended additively across two migrations):
 
 ```
 model Document {
@@ -68,35 +66,41 @@ model Document {
   tenancyId       String
   tenancy         Tenancy   @relation(fields: [tenancyId], references: [id], onDelete: Cascade)
   type            String    // "LEASE_AGREEMENT" for this flow
-  storageKey      String    // "inline" for v1 — see Known gaps
-  content         String?   // rendered lease text (new)
-  sha256          String?   // hash of content (new)
-  signerName      String?   // new
-  signerIp        String?   // new
-  signerUserAgent String?   // new
+  storageKey      String    // "inline" for now — see Known gaps
+  content         String?   // full rendered lease text, all clauses (migration 20260818120000)
+  sha256          String?   // hash of content (migration 20260818120000)
+  signerName      String?   // migration 20260818120000
+  signerIp        String?   // migration 20260818120000
+  signerUserAgent String?   // migration 20260818120000
+  initials        Json?     // [{ clauseKey, initialedAt }, ...] (migration 20260818130000)
+  clauseVersion   String?   // LEASE_VERSION at time of signing (migration 20260818130000)
   signedAt        DateTime?
   createdAt       DateTime  @default(now())
 }
 ```
 
-All four new columns are nullable — additive to existing rows, no backfill required. This model will
-likely need further extension (or a companion `DocumentInitial`-style table) once per-clause initials
-are built — see "Outstanding before this is done" above.
+All new columns across both migrations are nullable — additive to existing rows, no backfill required.
 
-## Code touched (v1)
+## Code touched
 
-- `src/lib/leasing-service.ts` — `renderLeaseAgreement()` (template-literal lease text) and
-  `hashDocument()` (SHA-256 via Node's built-in `crypto`); `moveIn()` now requires `signerName` and
-  creates the `Document` row inside its transaction.
-- `src/lib/validators.ts` — `moveInSchema` gained `signerName` (2–120 chars) and
-  `leaseAccepted: z.literal(true)`.
+- `src/lib/lease-agreement-content.ts` (new) — `LEASE_VERSION`, `LEASE_CLAUSE_KEYS`, `buildLeaseClauses()`
+  (returns the clause list rendered with tenancy-specific context), `renderLeaseDocument()` (full document
+  text for hashing/storage). This is the single place clause wording lives — edit here once real legal
+  text is approved.
+- `src/lib/leasing-service.ts` — `hashDocument()` (SHA-256); `moveIn()` now requires `signerName` and
+  `initials: LeaseClauseKey[]` covering every clause, builds the document via `renderLeaseDocument()`,
+  and creates the `Document` row (with per-clause `initials` JSON + `clauseVersion`) inside its transaction.
+- `src/lib/validators.ts` — `moveInSchema` requires `signerName` (2–120 chars) and `initials` as an array
+  that must include every key in `LEASE_CLAUSE_KEYS`.
 - `src/app/api/v1/leasing/workflows/[action]/route.ts` — for the `move-in` action, merges
   `signerIp`/`signerUserAgent` from request headers into the validated input before calling `moveIn()`.
-- `src/app/actions/leasing.ts` — `moveInAction` (server action used by the move-in page) does the
-  same header capture via `next/headers`.
-- `src/components/move-in-workspace.tsx` — step 2 of the move-in form gained a "Lease agreement"
-  section: rendered summary, required typed-name field, required acceptance checkbox. "Complete
-  move-in" is disabled client-side until both are filled in (server-side validation is the real gate).
+- `src/app/actions/leasing.ts` — `moveInAction` (server action used by the move-in page) reads one
+  `initial_<clauseKey>` checkbox per clause from the submitted form into the `initials` array, and does
+  the same header capture via `next/headers`.
+- `src/components/move-in-workspace.tsx` — step 2 of the move-in form renders every clause (title +
+  body, populated with the selected facility/unit/customer/rate) with its own required initial
+  checkbox, plus the final typed-name signature field. "Complete move-in" is disabled client-side until
+  every clause is initialled and a name is typed (server-side validation is the real gate).
 
 ## Known gaps / fast-follows
 
@@ -104,7 +108,8 @@ are built — see "Outstanding before this is done" above.
   the full lease text lives in `content` (Postgres `TEXT`). A fast-follow should render this to PDF and
   store it in real object storage (with `storageKey` pointing at it), keeping `content`/`sha256` as the
   source of truth for what was actually signed.
-- **Lease legal text is placeholder boilerplate — now a blocking item, see above, not just a fast-follow.**
-- **No signer-facing verbatim document viewer — now a blocking item, see above, not just a fast-follow.**
 - **No re-signature/amendment flow.** Transfers and rate changes do not currently re-trigger a signed
-  document. Out of scope for v1 per Brett's "blocking step inside move-in" instruction.
+  document. Out of scope per Brett's "blocking step inside move-in" instruction.
+- **No migrations deployed yet.** Both `20260818120000_lease_esignature` and
+  `20260818130000_lease_clause_initials` need `npm run db:migrate:deploy` run against production before
+  this can be live-tested — see `PROJECT_CONTEXT.md`.
