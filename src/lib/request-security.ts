@@ -7,11 +7,24 @@ export function requestIp(request: Request) {
 export function privacyHash(value: string) {
   return createHash("sha256").update(`${process.env.AUTH_SECRET}:${value}`).digest("hex");
 }
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/**
+ * CSRF guard for mutating requests. Browsers always send an Origin header on
+ * same-site fetch/XHR/form submissions for non-safe methods, so a missing
+ * Origin on a mutating request is treated as untrusted rather than allowed
+ * through. Safe methods (GET/HEAD/OPTIONS) are exempt since they must not
+ * have side effects.
+ */
 export function sameOrigin(request: Request) {
+  if (SAFE_METHODS.has(request.method)) return true;
   const origin = request.headers.get("origin");
+  if (!origin) return false;
   const allowed = new Set([new URL(request.url).origin, process.env.APP_URL].filter(Boolean));
-  return !origin || allowed.has(origin);
+  return allowed.has(origin);
 }
+
 export async function rateLimit(key: string, limit: number, windowMs: number) {
   const now = new Date();
   const existing = await db.rateLimitBucket.findUnique({ where: { key } });
