@@ -1,6 +1,6 @@
 # STOR 24 CRM and Operations Platform — Project Context
 
-> Last reviewed: 18 August 2026. Read this file before planning or changing the repository. Update it whenever a material capability, decision, deployment state, or cross-repository contract changes.
+> Last reviewed: 19 August 2026. Read this file before planning or changing the repository. Update it whenever a material capability, decision, deployment state, or cross-repository contract changes.
 
 ## Product identity and non-negotiable boundary
 
@@ -21,6 +21,28 @@ This repository is the internal STOR 24 CRM and operations portal. Despite the G
 ## Branching policy
 
 Branches exist only as short-lived rollback/review points before merging into `main`. Open a branch, get it reviewed and merged, then delete it immediately.
+
+## Sign-in security hardening — 19 August 2026
+
+Brett asked for a security audit of sign-in/auth across all three repositories ("harden and secure the website for sign-in and prevent hacking"). Full audit findings and fixes below; this repository (the CRM, highest-privilege sign-in surface) was already the most solidly built of the three.
+
+**What was already solid here, confirmed by direct code review (not assumed):**
+- Custom JWT auth via `jose`, not a third-party auth library; bcrypt cost-12 password hashing.
+- Double-layer authorization: `src/proxy.ts` middleware verifies the session on every request *and* independently re-checks `user.active`/`sessionVersion` against the database — a stolen or stale cookie doesn't survive a password change or deactivation.
+- `src/lib/auth-guards.ts` (`requireSession`, `requirePermission`) does a second, independent DB-backed check per route with facility-scoped RBAC, not just a client-side gate.
+- Login route: DB-backed rate limiting (5 attempts/15 min), constant-time comparison to resist user-enumeration timing attacks, all attempts audit-logged.
+- Cookies: `httpOnly`, `secure` in production, `sameSite: lax`, 8-hour expiry — no token ever stored in localStorage.
+- Password policy: 12+ characters, requires mixed case, digit and special character (`src/lib/validators.ts`).
+- Server-to-server endpoints authenticate via SHA-256-hashed shared secrets checked with `timingSafeEqual` (separate path from the CSRF/Origin check below, unaffected by that change).
+
+**Fixed this session:**
+- **CSRF gap in `src/lib/request-security.ts`.** `sameOrigin()` previously returned `true` when the `Origin` header was simply absent (`!origin || allowed.has(origin)`) — a real bypass, since a crafted cross-site request that omits `Origin` would sail through. Browsers always send `Origin` on same-site mutating fetch/XHR/form requests, so the fix now requires `Origin` to be present and allow-listed for any non-safe HTTP method (`POST`/`PUT`/`PATCH`/`DELETE`), while leaving safe methods (`GET`/`HEAD`/`OPTIONS`) unaffected.
+- **No security headers at the app layer.** Added `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy`, HSTS (`max-age=63072000; includeSubDomains; preload`) and a same-origin-only Content-Security-Policy in `next.config.ts` via `headers()`. This is the staff sign-in surface, so it got the strictest CSP of the three repositories (no external script/style/connect sources at all).
+
+**Not fixed this session — needs follow-up:**
+- **No 2FA/MFA.** Both this repository's staff login and `stor24-cms`'s admin login are password-only. Worth prioritising for owner/admin-level accounts given the operational data this system holds. Not implemented yet — flagged for a dedicated pass, not a quick patch.
+- Password-reset token expiry enforcement was reviewed but not exhaustively traced end-to-end during the audit; creation/hashing (SHA-256, random 32 bytes) looked correct.
+- CVE/dependency cross-check against `bcryptjs`, `jose`, `prisma`, `next` versions was not performed — versions are current-generation but not individually checked against known advisories.
 
 ## Implemented foundations
 
@@ -66,7 +88,9 @@ MRI Property Central — approved finance system of record
 5. Once real lease agreement content is provided: finalise clause wording, live-test the full send→sign→activate path, and build actual PDF generation (current build sends a web link, not a PDF).
 6. **Live-verify the new public leads API and the new `/graphs` dashboard** — check the `Deploy to VPS` Actions run for a green build, then confirm both work against real production data/traffic.
 7. Consider extending `/graphs` further (facility comparisons, exportable snapshots, saved filters, a real charting library once lockfile regeneration is safe from this environment).
-8. `stor24-cms`'s GitHub Actions tab was reported empty by Brett on 18 August 2026 despite `.github/workflows/deploy.yml` existing on `main` — most likely cause is the repo's Actions permission being disabled in Settings → Actions → General (not fixable via the API tools available in this environment; needs to be checked/enabled by Brett directly in GitHub's web UI). Confirm this is resolved and that the `deploy.yml` migration step (added 18 August 2026) has actually run before trusting that the CRM-collection removal is live.
+8. `stor24-cms`'s deploy pipeline issue (empty Actions tab) was root-caused and fixed 19 August 2026 — see `stor24-cms/PROJECT_CONTEXT.md` "Deploy pipeline root cause fixed."
+9. **Implement 2FA/MFA for staff/owner accounts** — flagged 19 August 2026 during the sign-in security audit as the highest-value remaining gap; not yet implemented, needs a dedicated pass (TOTP is the natural fit given `jose`-based JWT auth already in place).
+10. Confirm the 19 August 2026 CSRF fix (`sameOrigin()` in `src/lib/request-security.ts`) hasn't broken any legitimate mutating request that relied on the old missing-Origin bypass — watch for unexpected 403s on the next deploy, particularly from any non-browser client.
 
 ## Working rules for any AI assistant (selected, most relevant)
 
@@ -78,6 +102,7 @@ MRI Property Central — approved finance system of record
 6. When making a large text-file edit via a tool requiring full replacement content, double-check the content variable actually contains the full intended file before submitting — not a placeholder.
 7. Update this file after every material change, with dated evidence, not optimistic status language.
 8. This environment has no tool to change GitHub repository Settings (e.g. enabling Actions, branch protection) — those changes require the user to make them directly in GitHub's web UI. Don't imply this can be automated from here.
+9. **Security fixes need the same evidence discipline as feature work.** A CSRF/header fix pushed to `main` is not "secured" until it's deployed and, ideally, spot-checked live — don't let the language in this file imply otherwise.
 
 ## Definition of done
 
