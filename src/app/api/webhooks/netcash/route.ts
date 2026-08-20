@@ -35,9 +35,23 @@ export async function POST(request: Request) {
     ? await db.payment.findFirst({ where: { provider: "NETCASH", providerRef } })
     : null;
 
+  // Resolve the owning organisation for the WebhookInbox row: walk
+  // Payment -> Account -> Customer -> Organisation when we have a match.
+  // Unmatched callbacks (no providerRef, or providerRef we don't recognise)
+  // get organisationId "UNKNOWN" and are left for manual triage -- we'd
+  // rather record an unattributed webhook than silently drop it.
+  let organisationId = "UNKNOWN";
+  if (payment) {
+    const account = await db.account.findUnique({
+      where: { id: payment.accountId },
+      include: { customer: { select: { organisationId: true } } },
+    });
+    organisationId = account?.customer.organisationId ?? "UNKNOWN";
+  }
+
   const inbox = await db.webhookInbox.create({
     data: {
-      organisationId: payment ? (await db.account.findUnique({ where: { id: payment.accountId } }).then((a) => a?.customerId ? undefined : undefined)) as unknown as string ?? "UNKNOWN" : "UNKNOWN",
+      organisationId,
       provider: "NETCASH",
       eventType: statusRaw || "UNKNOWN",
       externalEventId,
@@ -45,7 +59,7 @@ export async function POST(request: Request) {
       headers: Object.fromEntries(request.headers.entries()),
       status: "PENDING",
     },
-  }).catch(async (err) => {
+  }).catch((err) => {
     // Unique constraint on (organisationId, provider, externalEventId) -- duplicate delivery, that's fine.
     if (err instanceof Error && err.message.includes("Unique constraint")) return null;
     throw err;
