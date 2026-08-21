@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createCustomer, createFacility, createLead, createReservation, createUnit, createUnitType, giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
-import { sendLeaseSigningLink } from "@/lib/notifications";
+import { dispatchBlendSignLease } from "@/lib/blendsign-lease-service";
 import { requireScope } from "@/lib/scope";
 import { customerSchema, facilitySchema, leadSchema, moveInSchema, moveOutSchema, noticeSchema, reservationSchema, transferSchema, unitSchema, unitTypeSchema } from "@/lib/validators";
 import { requirePermission } from "@/lib/auth-guards";
@@ -46,24 +46,10 @@ export async function reserveAction(data: FormData) {
  */
 export async function moveInAction(data: FormData) {
   await requirePermission("move_in.create");
-  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING" });
+  const parsed = moveInSchema.parse({ reservationId: text(data, "reservationId"), facilityId: text(data, "facilityId"), customerId: text(data, "customerId"), unitId: text(data, "unitId"), startDate: text(data, "startDate"), monthlyRate: number(data, "monthlyRate"), initialCharge: number(data, "initialCharge") ?? 0, accessState: "PENDING", paymentMethod: text(data, "paymentMethod") });
   const scope = await requireScope();
   const result = await moveIn(scope, parsed);
-  const signingUrl = `${process.env.APP_URL ?? ""}/sign/${result.document.signingToken}`;
-  await sendLeaseSigningLink({
-    organisationId: scope.organisationId,
-    facilityId: parsed.facilityId,
-    customerId: parsed.customerId,
-    documentId: result.document.id,
-    to: { email: result.customer.email },
-    variables: {
-      customerName: result.customer.companyName || [result.customer.firstName, result.customer.lastName].filter(Boolean).join(" ") || "there",
-      facilityName: result.facility.name,
-      unitNumber: result.unit.number,
-      signingUrl,
-      expiresAt: result.document.expiresAt ? result.document.expiresAt.toLocaleDateString("en-ZA") : "",
-    },
-  });
+  await dispatchBlendSignLease(scope, result, parsed);
   revalidatePath("/tenants"); revalidatePath("/operations/accounts"); redirect("/operations/accounts");
 }
 export async function transferAction(data: FormData) { await requirePermission("operations.manage"); const parsed = transferSchema.parse({ tenancyId: text(data, "tenancyId"), toUnitId: text(data, "toUnitId"), effectiveAt: text(data, "effectiveAt"), monthlyRate: number(data, "monthlyRate") }); await transfer(await requireScope(), parsed); revalidatePath("/tenants"); }

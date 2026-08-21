@@ -1,9 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { facilityWhere, requireFacility, type RequestScope } from "@/lib/scope";
 import { revokeBiometricAccess } from "@/lib/biometric-access-service";
-import { LEASE_CLAUSE_KEYS, LEASE_VERSION, renderLeaseDocument, type LeaseClauseContext, type LeaseClauseKey } from "@/lib/lease-agreement-content";
+import { LEASE_CLAUSE_KEYS, type LeaseClauseKey } from "@/lib/lease-agreement-content";
+import { blendSignTemplateKey, type BlendSignEnvelope } from "@/lib/blendsign-client";
 
 type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
 
@@ -80,19 +81,16 @@ export async function cancelReservation(scope: RequestScope, reservationId: stri
 }
 
 /**
- * Starts a move-in and sends the lease agreement out for e-signature —
- * DocuSign-style, not signed inline by a staff member on the customer's
- * behalf. Creates the Account, a DRAFT Tenancy and a PENDING Occupancy
- * (the unit stays RESERVED, not OCCUPIED), and a Document row holding the
- * rendered lease content plus a single-use signingToken and a 7-day
- * expiry. The caller is responsible for emailing/texting the signing link
- * (see sendLeaseSigningLink in notifications.ts) — nothing here sends
- * anything itself, so the transaction stays free of network calls.
+ * Starts a move-in for a BlendSign lease. Creates the Account, a DRAFT
+ * Tenancy, a PENDING Occupancy (the unit stays RESERVED, not OCCUPIED),
+ * and a pending Document carrying the selected template and idempotency
+ * key. The caller creates the external envelope after this transaction,
+ * keeping the database transaction free of network calls.
  *
  * The Tenancy/Occupancy only become ACTIVE/OCCUPIED once the customer
- * actually signs, via completeLeaseSigning() below.
+ * actually signs, via the authenticated BlendSign webhook.
  */
-export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string }) {
+export async function moveIn(scope: RequestScope, input: { reservationId?: string; facilityId: string; customerId: string; unitId: string; startDate: Date; monthlyRate?: number; initialCharge: number; accessState: string; paymentMethod: "DEBIT_ORDER" | "CARD" | "EFT" | "OTHER" }) {
   await requireFacility(scope, input.facilityId);
   return db.$transaction(async (tx) => {
     const unit = await tx.unit.findFirst({ where: { id: input.unitId, facilityId: input.facilityId, status: { in: ["AVAILABLE", "RESERVED"] } }, include: { unitType: true } });
@@ -101,20 +99,45 @@ export async function moveIn(scope: RequestScope, input: { reservationId?: strin
     if (!unit || !customer || !facility) throw new Error("CONFLICT");
     const account = await tx.account.create({ data: { customerId: customer.id, accountNumber: `ST24-${Date.now().toString(36).toUpperCase()}` } });
     const monthlyRate = input.monthlyRate ?? unit.monthlyRate;
-    const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "DRAFT", startDate: input.startDate, occupancies: { create: { unitId: unit.id, status: "PENDING", startDate: input.startDate, monthlyRate, accessState: input.accessState } } } });
+    const tenancy = await tx.tenancy.create({ data: { facilityId: input.facilityId, customerId: customer.id, accountId: account.id, status: "DRAFT", startDate: input.startDate, paymentMethod: input.paymentMethod, occupancies: { create: { unitId: unit.id, status: "PENDING", startDate: input.startDate, monthlyRate, accessState: input.accessState } } } });
     // Hold the unit while the lease is out for signature, but do not occupy it yet.
     await tx.unit.update({ where: { id: unit.id }, data: { status: "RESERVED" } });
-    const customerName = customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Customer";
-    const clauseContext: LeaseClauseContext = { facilityName: facility.name, unitNumber: unit.number, unitTypeName: unit.unitType.name, customerName, monthlyRate: Number(monthlyRate), startDate: input.startDate };
-    const leaseContent = renderLeaseDocument(clauseContext);
-    const signingToken = randomBytes(32).toString("base64url");
     const sentAt = new Date();
     const expiresAt = new Date(sentAt.getTime() + SIGNING_LINK_TTL_MS);
-    const document = await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "inline", content: leaseContent, sha256: hashDocument(leaseContent), clauseVersion: LEASE_VERSION, status: "SENT", signingToken, sentAt, expiresAt } });
+    const document = await tx.document.create({ data: { tenancyId: tenancy.id, type: "LEASE_AGREEMENT", storageKey: "blendsign:pending", provider: "BLENDSIGN", templateKey: blendSignTemplateKey(input.paymentMethod), idempotencyKey: `stor24-lease:${tenancy.id}`, status: "PENDING", sentAt, expiresAt } });
     if (input.initialCharge > 0) { await tx.ledgerEntry.create({ data: { accountId: account.id, type: "CHARGE", amount: input.initialCharge, description: "Move-in charge (pending lease signature)", effectiveAt: input.startDate, createdById: scope.userId } }); await tx.account.update({ where: { id: account.id }, data: { balance: { increment: input.initialCharge } } }); }
     if (input.reservationId) await tx.reservation.update({ where: { id: input.reservationId }, data: { status: "CONVERTED", convertedTenancyId: tenancy.id } });
     await audit(tx, scope, "tenancy.lease_sent_for_signature", "Tenancy", tenancy.id, input.facilityId);
     return { tenancy, document, customer, facility, unit };
+  });
+}
+
+export type MoveInResult = Awaited<ReturnType<typeof moveIn>>;
+
+export async function attachBlendSignEnvelope(scope: RequestScope, documentId: string, envelope: BlendSignEnvelope) {
+  const document = await db.document.findFirst({ where: { id: documentId }, include: { tenancy: true } });
+  if (!document) throw new Error("NOT_FOUND");
+  await requireFacility(scope, document.tenancy.facilityId);
+  return db.$transaction(async (tx) => {
+    const updated = await tx.document.update({ where: { id: document.id }, data: { externalId: envelope.envelopeId, storageKey: `blendsign:${envelope.envelopeId}`, status: envelope.status } });
+    await audit(tx, scope, "tenancy.blendsign_envelope_created", "Document", document.id, document.tenancy.facilityId, undefined, { envelopeId: envelope.envelopeId, templateKey: document.templateKey } as Prisma.InputJsonValue);
+    return updated;
+  });
+}
+
+export async function completeBlendSignEnvelope(envelopeId: string) {
+  return db.$transaction(async (tx) => {
+    const document = await tx.document.findUnique({ where: { externalId: envelopeId }, include: { tenancy: { include: { occupancies: true, facility: true } } } });
+    if (!document) throw new Error("NOT_FOUND");
+    if (document.status === "SIGNED") return { tenancyId: document.tenancyId, idempotent: true };
+    const occupancy = document.tenancy.occupancies.find((item) => item.status === "PENDING");
+    if (!occupancy) throw new Error("CONFLICT");
+    await tx.occupancy.update({ where: { id: occupancy.id }, data: { status: "ACTIVE" } });
+    await tx.unit.update({ where: { id: occupancy.unitId }, data: { status: "OCCUPIED" } });
+    await tx.tenancy.update({ where: { id: document.tenancyId }, data: { status: "ACTIVE" } });
+    await tx.document.update({ where: { id: document.id }, data: { status: "SIGNED", signedAt: new Date() } });
+    await tx.auditEvent.create({ data: { organisationId: document.tenancy.facility.organisationId, facilityId: document.tenancy.facilityId, actorId: null, action: "tenancy.blendsign_completed", entityType: "Document", entityId: document.id, after: { envelopeId } } });
+    return { tenancyId: document.tenancyId, idempotent: false };
   });
 }
 
