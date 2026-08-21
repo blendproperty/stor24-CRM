@@ -10,6 +10,6 @@ export default async function MoveInPage() {
   return <MoveInWorkspace action={moveInAction}
     facilities={data.facilities.map(({ id, name }) => ({ id, name }))}
     units={data.facilities.flatMap((facility) => facility.units.map((unit) => ({ id: unit.id, facilityId: unit.facilityId, number: unit.number, floor: unit.floor ?? "", zone: unit.zone ?? "", status: unit.status, monthlyRate: Number(unit.monthlyRate), typeName: unit.unitType.name, width: unit.unitType.widthMetres === null ? null : Number(unit.unitType.widthMetres), length: unit.unitType.lengthMetres === null ? null : Number(unit.unitType.lengthMetres), area: unit.unitType.areaSqMetres === null ? null : Number(unit.unitType.areaSqMetres), features: unit.unitType.features })))}
-    customers={data.customers.map((customer) => ({ id: customer.id, name: customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Unnamed customer" }))}
+    customers={data.customers.map((customer) => ({ id: customer.id, name: customer.companyName || [customer.firstName, customer.lastName].filter(Boolean).join(" ") || "Unnamed customer", email: customer.email }))}
     reservations={data.reservations.filter((reservation) => reservation.status === "ACTIVE").map((reservation) => ({ id: reservation.id, facilityId: reservation.facilityId, unitId: reservation.unitId, label: `${reservation.unit.number} · ${reservation.customer.companyName || reservation.customer.firstName || "Customer"}` }))}/>
 }

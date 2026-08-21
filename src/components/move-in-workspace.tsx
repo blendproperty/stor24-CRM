@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/status-pill";
 
 type Unit = { id: string; facilityId: string; number: string; floor: string; zone: string; status: string; monthlyRate: number; typeName: string; width: number | null; length: number | null; area: number | null; features: string[] };
 type Facility = { id: string; name: string };
-type Customer = { id: string; name: string };
+type Customer = { id: string; name: string; email: string | null };
 type Reservation = { id: string; facilityId: string; unitId: string; label: string };
 
 export function MoveInWorkspace({ facilities, units, customers, reservations, action }: { facilities: Facility[]; units: Unit[]; customers: Customer[]; reservations: Reservation[]; action: (data: FormData) => void | Promise<void> }) {
@@ -45,7 +45,8 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
       && (!find || unit.number.toLowerCase().includes(find.toLowerCase()));
   });
   const selected = units.find((unit) => unit.id === selectedId);
-  const canSendForSignature = Boolean(customerId) && Boolean(selectedId);
+  const selectedCustomer = customerOptions.find((customer) => customer.id === customerId);
+  const canSendForSignature = Boolean(customerId) && Boolean(selectedId) && Boolean(selectedCustomer?.email);
 
   async function addCustomer(formData: FormData) {
     const text = (key: string) => String(formData.get(key) ?? "").trim();
@@ -54,7 +55,7 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
     const payload = await response.json(); setCustomerBusy(false);
     if (!response.ok) { setCustomerError(payload.error?.message ?? "Customer could not be created."); return; }
     const name = payload.data.companyName || [payload.data.firstName, payload.data.lastName].filter(Boolean).join(" ");
-    setCustomerOptions((current) => [{ id: payload.data.id, name }, ...current]); setCustomerId(payload.data.id); setShowCustomer(false);
+    setCustomerOptions((current) => [{ id: payload.data.id, name, email: payload.data.email ?? null }, ...current]); setCustomerId(payload.data.id); setShowCustomer(false);
   }
 
   return <div className="page-stack">
@@ -66,10 +67,12 @@ export function MoveInWorkspace({ facilities, units, customers, reservations, ac
       </article>
       <aside className="unit-filter-panel"><section className="panel"><h3>Selected unit</h3><strong className="selected-unit-number">{selected?.number ?? "None"}</strong></section><section className="panel"><h3>Filter</h3><div className="filter-toggle"><label><input type="radio" checked={filterMode === "size"} onChange={() => { setFilterMode("size"); setFilterKey("ALL"); }}/>Size</label><label><input type="radio" checked={filterMode === "area"} onChange={() => { setFilterMode("area"); setFilterKey("ALL"); }}/>Area</label></div><button type="button" className={filterKey === "ALL" ? "filter-row active" : "filter-row"} onClick={() => setFilterKey("ALL")}><span>Vacant units</span><strong>{available.length}</strong></button>{groups.map((group) => <button type="button" className={filterKey === group.key ? "filter-row active" : "filter-row"} onClick={() => setFilterKey(group.key)} key={group.key}><span>{group.type}<small>{group.measure}</small></span><strong>{group.count}</strong></button>)}</section><section className="panel"><h3>Note</h3><p>{selected ? `${selected.typeName}, ${selected.area?.toFixed(1) ?? "area not set"} m² at R ${selected.monthlyRate.toLocaleString("en-ZA")} per month.` : "Select a unit to continue."}</p></section></aside>
     </section> : <section className="panel panel-spacious"><form action={action} className="move-in-form"><input type="hidden" name="facilityId" value={selected?.facilityId ?? facilityId}/><input type="hidden" name="unitId" value={selectedId}/><label>Selected unit<input value={selected ? `${selected.number} · ${selected.typeName} · R ${selected.monthlyRate.toLocaleString("en-ZA")}` : ""} readOnly/></label><label>Customer<select name="customerId" required value={customerId} onChange={(event) => setCustomerId(event.target.value)}><option value="">Select customer</option>{customerOptions.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}</select><button type="button" className="text-button move-in-add-customer" onClick={() => { setShowCustomer(true); setCustomerError(""); }}><Plus size={14}/>Add a new customer</button></label><label>Reservation (optional)<select name="reservationId"><option value="">Direct move-in</option>{reservations.filter((item) => item.unitId === selectedId).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Start date<input name="startDate" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label>Monthly rent<input name="monthlyRate" type="number" step=".01" defaultValue={selected?.monthlyRate}/></label><label>Initial charge<input name="initialCharge" type="number" step=".01" defaultValue="0"/><small>Provisional until the financial rules are confirmed.</small></label>
+      <label>Payment method<select name="paymentMethod" defaultValue="DEBIT_ORDER" required><option value="DEBIT_ORDER">Debit order</option><option value="CARD">Credit card</option><option value="EFT">EFT</option><option value="OTHER">Other</option></select><small>This selects the matching Blend Sign lease automatically.</small></label>
       <section className="lease-sign-panel">
         <h3>Lease agreement</h3>
         <p className="lease-summary" style={{ fontStyle: "italic" }}>Draft agreement — pending attorney review. The customer will receive an emailed link to review every clause, initial each one and sign — the unit stays held (not occupied) until they do.</p>
       </section>
+      {!selectedCustomer?.email && customerId ? <p className="form-error">Add an email address to this customer before sending the lease.</p> : null}
       <div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setStep(1)}><ArrowLeft size={16}/>Back</button><button className="button button-primary" disabled={!canSendForSignature}>Send lease for signature</button></div></form></section>}
     {step === 1 ? <div className="form-footer"><button className="button button-secondary" type="button" onClick={() => history.back()}><ArrowLeft size={16}/>Back</button><button className="button button-primary" type="button" disabled={!selectedId} onClick={() => setStep(2)}>Next<ArrowRight size={16}/></button></div> : null}
     {showCustomer ? <div className="modal-backdrop"><div className="modal-card" role="dialog" aria-modal="true"><button className="modal-close" onClick={() => setShowCustomer(false)}><X size={18}/></button><p className="eyebrow">Move in</p><h2>Add customer</h2><p className="modal-copy">Create the operational customer record without leaving the move-in workflow.</p><form action={addCustomer} className="invite-form"><label>Customer type<select name="type" defaultValue="INDIVIDUAL"><option value="INDIVIDUAL">Individual</option><option value="BUSINESS">Business</option></select></label><label>First name<input name="firstName"/></label><label>Last name<input name="lastName"/></label><label>Company name<input name="companyName"/></label><label>Mobile / phone<input name="phone"/></label><label>Email<input name="email" type="email"/></label><label>SA ID or passport<input name="identityRef"/></label><label>City<input name="city"/></label><label>Province<input name="province"/></label><label className="check-label"><input name="emailConsent" type="checkbox"/><span>Email consent</span></label><label className="check-label"><input name="smsConsent" type="checkbox"/><span>SMS consent</span></label>{customerError ? <p className="form-error">{customerError}</p> : null}<div className="form-actions"><button type="button" className="button button-secondary" onClick={() => setShowCustomer(false)}>Cancel</button><button className="button button-primary" disabled={customerBusy}>{customerBusy ? "Saving…" : "Add customer"}</button></div></form></div></div> : null}

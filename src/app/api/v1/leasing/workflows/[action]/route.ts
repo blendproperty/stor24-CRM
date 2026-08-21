@@ -1,6 +1,6 @@
 import { apiError, jsonBody } from "@/lib/api";
 import { giveNotice, moveIn, moveOut, transfer } from "@/lib/leasing-service";
-import { sendLeaseSigningLink } from "@/lib/notifications";
+import { dispatchBlendSignLease } from "@/lib/blendsign-lease-service";
 import { requireScope } from "@/lib/scope";
 import { requirePermission } from "@/lib/auth-guards";
 import { moveInSchema, moveOutSchema, noticeSchema, transferSchema } from "@/lib/validators";
@@ -15,26 +15,9 @@ export async function POST(request: Request, context: { params: Promise<{ action
     await requirePermission(permissions[action as keyof typeof permissions]);
     const scope = await requireScope();
     const data = await (command[1] as (s: typeof scope, i: never) => Promise<unknown>)(scope, parsed.data as never);
-    // Move-in no longer signs the lease inline — it sends a signing link
-    // (DocuSign-style) to the customer. See moveIn()/completeLeaseSigning()
-    // in leasing-service.ts and the public /sign/[token] page.
     if (action === "move-in") {
       const result = data as Awaited<ReturnType<typeof moveIn>>;
-      const signingUrl = `${process.env.APP_URL ?? ""}/sign/${result.document.signingToken}`;
-      await sendLeaseSigningLink({
-        organisationId: scope.organisationId,
-        facilityId: result.tenancy.facilityId,
-        customerId: result.customer.id,
-        documentId: result.document.id,
-        to: { email: result.customer.email },
-        variables: {
-          customerName: result.customer.companyName || [result.customer.firstName, result.customer.lastName].filter(Boolean).join(" ") || "there",
-          facilityName: result.facility.name,
-          unitNumber: result.unit.number,
-          signingUrl,
-          expiresAt: result.document.expiresAt ? result.document.expiresAt.toLocaleDateString("en-ZA") : "",
-        },
-      });
+      await dispatchBlendSignLease(scope, result, parsed.data as never);
     }
     return Response.json({ data });
   } catch (error) { return apiError(error); }

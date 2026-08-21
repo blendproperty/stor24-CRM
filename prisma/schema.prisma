@@ -425,6 +425,7 @@ model Tenancy {
   account     Account       @relation(fields: [accountId], references: [id])
   status      TenancyStatus @default(DRAFT)
   startDate   DateTime
+  paymentMethod String?
   endDate     DateTime?
   noticeDate  DateTime?
   occupancies Occupancy[]
@@ -559,12 +560,17 @@ model Document {
   initials        Json?
   clauseVersion   String?
   signingToken    String?   @unique
+  provider        String?
+  externalId      String?   @unique
+  templateKey     String?
+  idempotencyKey  String?   @unique
   sentAt          DateTime?
   expiresAt       DateTime?
   signedAt        DateTime?
   createdAt       DateTime  @default(now())
 
   @@index([tenancyId, type])
+  @@index([provider, externalId])
 }
 
 model User {
