@@ -1,0 +1,67 @@
+name: Configure BlendSign integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          test -n "$VPS_HOST"
+          test -n "$VPS_KNOWN_HOSTS"
+          test -n "$VPS_SSH_KEY"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/stor24_crm
+          chmod 600 ~/.ssh/known_hosts ~/.ssh/stor24_crm
+
+      - name: Configure server-only BlendSign values
+        env:
+          BLENDSIGN_API_KEY: ${{ secrets.BLENDSIGN_API_KEY }}
+          BLENDSIGN_BASE_URL: ${{ secrets.BLENDSIGN_BASE_URL }}
+          BLENDSIGN_WEBHOOK_SECRET: ${{ secrets.BLENDSIGN_WEBHOOK_SECRET }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          test -n "$BLENDSIGN_API_KEY"
+          test -n "$BLENDSIGN_BASE_URL"
+          test -n "$BLENDSIGN_WEBHOOK_SECRET"
+          test -n "$VPS_USER"
+          {
+            printf '%s\n' "$BLENDSIGN_BASE_URL"
+            printf '%s\n' "$BLENDSIGN_API_KEY"
+            printf '%s\n' "$BLENDSIGN_WEBHOOK_SECRET"
+          } | ssh -i ~/.ssh/stor24_crm "$VPS_USER@$VPS_HOST" '
+            set -eu
+            cd /opt/stor24-crm
+            IFS= read -r blendsign_base_url
+            IFS= read -r blendsign_api_key
+            IFS= read -r blendsign_webhook_secret
+            test -n "$blendsign_base_url"
+            test -n "$blendsign_api_key"
+            test -n "$blendsign_webhook_secret"
+            umask 077
+            env_tmp=$(mktemp .env.blendsign.XXXXXX)
+            trap '\''rm -f "$env_tmp"'\'' EXIT
+            grep -v -E '\''^(BLENDSIGN_BASE_URL|BLENDSIGN_API_KEY|BLENDSIGN_WEBHOOK_SECRET)='\'' .env > "$env_tmp" || true
+            printf '\''BLENDSIGN_BASE_URL=%s\n'\'' "$blendsign_base_url" >> "$env_tmp"
+            printf '\''BLENDSIGN_API_KEY=%s\n'\'' "$blendsign_api_key" >> "$env_tmp"
+            printf '\''BLENDSIGN_WEBHOOK_SECRET=%s\n'\'' "$blendsign_webhook_secret" >> "$env_tmp"
+            chmod 600 "$env_tmp"
+            mv "$env_tmp" .env
+            trap - EXIT
+            test "$(grep -c '\''^BLENDSIGN_BASE_URL='\'' .env)" -eq 1
+            test "$(grep -c '\''^BLENDSIGN_API_KEY='\'' .env)" -eq 1
+            test "$(grep -c '\''^BLENDSIGN_WEBHOOK_SECRET='\'' .env)" -eq 1
+            printf '\''Configured server-only BlendSign environment names successfully.\n'\''
+          '
