@@ -76,9 +76,7 @@ export async function createBlendSignLeaseEnvelope(input: LeaseEnvelopeInput): P
     data["billing.contactEmail"] = input.customer.email;
     data["debitOrder.commencementDate"] = input.startDate.toISOString().slice(0, 10);
     data["debitOrder.amount"] = input.monthlyRate.toFixed(2);
-    if (input.customer.companyName) {
-      data["tenant.contactPerson"] = [input.customer.firstName, input.customer.lastName].filter(Boolean).join(" ");
-    }
+    data["tenant.contactPerson"] = [input.customer.firstName, input.customer.lastName].filter(Boolean).join(" ") || name;
   }
   else if (input.paymentMethod === "CARD") data["payment.creditCard"] = "true";
   else data["payment.eftOther"] = "true";
