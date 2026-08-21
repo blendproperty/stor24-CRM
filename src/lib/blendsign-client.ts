@@ -19,6 +19,7 @@ type LeaseEnvelopeInput = {
   startDate: Date;
   monthlyRate: number;
   representative: { name: string; email: string };
+  autoCountersign?: boolean;
 };
 
 export type BlendSignEnvelope = {
@@ -64,7 +65,6 @@ export async function createBlendSignLeaseEnvelope(input: LeaseEnvelopeInput): P
   if (input.customer.identityRef) data["tenant.idNumber"] = input.customer.identityRef;
   if (input.customer.phone) {
     data["tenant.phone"] = input.customer.phone;
-    data["tenant.telephone"] = input.customer.phone;
   }
   if (input.customer.taxNumber) data["tenant.vatNumber"] = input.customer.taxNumber;
   if (address.address || address.street || address.line1) data["tenant.address"] = address.address || address.street || address.line1;
@@ -97,7 +97,7 @@ export async function createBlendSignLeaseEnvelope(input: LeaseEnvelopeInput): P
       data,
       recipients: [
         { role: "Signer 1", name, email: input.customer.email },
-        { role: "Stor24 Rep", name: input.representative.name, email: input.representative.email },
+        { role: "Stor24 Rep", name: input.representative.name, email: input.representative.email, autoSign: Boolean(input.autoCountersign) },
       ],
     }),
     signal: AbortSignal.timeout(15_000),
