@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { permissionGranted } from "../src/lib/permissions.ts";
 import { createResetToken, hashResetToken } from "../src/lib/password-reset.ts";
+import { isPublicPathname } from "../src/proxy.ts";
+
+test("session proxy allows only the HMAC-authenticated BlendSign webhook path", () => {
+  assert.equal(isPublicPathname("/api/webhooks/blendsign"), true);
+  assert.equal(isPublicPathname("/api/webhooks/blendsign/anything"), true);
+  assert.equal(isPublicPathname("/api/webhooks/unknown"), false);
+});
 
 test("permission matcher supports exact, scoped, read-only and owner grants", () => {
   assert.equal(permissionGranted(["leads.create"], "leads.create"), true);
